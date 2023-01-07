@@ -8,7 +8,8 @@ http:Client github = check new ("https://api.github.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "token " + API_KEY
+    "Authorization": "Bearer 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",
+    "X-GitHub-Api-Version":"2022-11-28"
 };
 
 service / on httpListener {
@@ -21,12 +22,12 @@ service / on httpListener {
 
 service /getLinesOfCode on httpListener {
 
-    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
+    resource function get .(string github) returns json|error {
 
         json data;
-
+        http:Client codetabs = check new ("https://api.codetabs.com");
         do {
-            data = check github->get("https: //api.codetabs.com/v1/loc?github=" + ownername + "/" + reponame, headers);
+            data = check codetabs->get("/v1/loc?github=" + github);
         } on fail var e {
             data = {"message": e.toString()};
         }
@@ -42,12 +43,12 @@ service /getLinesOfCode on httpListener {
 
 service /getCommitCount on httpListener {
 
-    resource function get getCommitCount(string ownername, string reponame) returns json|error {
+    resource function get .(string ownername, string reponame) returns json|error {
 
         json data;
 
         do {
-            data = check github->get("https://api.github.com/repos/"+ownername+ "/"+reponame + "/commits", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
         } on fail var e {
             data = {"message": e.toString()};
         }
@@ -63,11 +64,11 @@ service /getCommitCount on httpListener {
 }
 service /getPullsCount on httpListener {
 
-    resource function get getPullsCount(string ownername, string reponame) returns json|error {
+    resource function get .(string ownername, string reponame) returns json|error {
         json data;
 
         do {
-            data = check github->get("https://api.github.com/repos/" + ownername + "/" + reponame + "/pulls", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
         } on fail var e {
             data = {"message": e.toString()};
         }
@@ -80,11 +81,11 @@ service /getPullsCount on httpListener {
 
 service /getOpenedIssuesCount on httpListener {
 
-    resource function get getOpenedIssuesCount(string ownername, string reponame) returns json|error {
+    resource function get .(string ownername, string reponame) returns json|error {
 
         json data;
         do {
-            data = check github->get("https://api.github.com/repos/" + ownername + "/" + reponame + "/issues?state=open", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=open", headers);
         } on fail var e {
             data = {"message": e.toString()};
         }
@@ -95,12 +96,12 @@ service /getOpenedIssuesCount on httpListener {
 }
 
 service /getTotalIssueCount on httpListener {
-    resource function get getTotalIssueCount(string ownername, string reponame) returns json|error {
+    resource function get .(string ownername, string reponame) returns json|error {
 
         json data;
 
         do {
-            data = check github->get("https://api.github.com/repos/" + ownername + "/" + reponame + "issues?state=all", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "issues?state=all", headers);
         } on fail var e {
             data = {"message": e.toString()};
         }
