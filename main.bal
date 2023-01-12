@@ -67,7 +67,7 @@ service /primitive on httpListener {
             returnData = {
                 ownername: ownername,
                 reponame: reponame,
-                PullRequestCount: data
+                PullRequestCount: data.length()
                 
             
             };
