@@ -57,4 +57,25 @@ service /primitive on httpListener {
         return returnData;
     }
 
+
+    resource function get getPullRequestCount(string ownername, string reponame) returns json|error {
+
+        json[] data;
+        json returnData;
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                PullRequestCount: data.length()
+                
+            
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
 }
