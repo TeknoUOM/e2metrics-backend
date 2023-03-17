@@ -1,54 +1,31 @@
 import ballerina/http;
-import ballerina/io;
-import ballerina/os;
+import ballerina/time;
 
-listener http:Listener httpListener =new (8080);
-string API_KEY = os:getEnv("API_KEY");
-
-http:Client github = check new ("https://api.github.com");
+listener http:Listener httpListener = new(8080);
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
     "Authorization": "Bearer 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",
-    "X-GitHub-Api-Version":"2022-11-28"
+    "X-GitHub-Api-Version": "2022-11-28"
 };
 
-service / on httpListener {
-    resource function get greeting() returns string {
-        return "Hello,World";
-    }
+http:Client github = check new ("https://api.github.com");
 
-}
-
-
-service /primitive on httpListener {
-
-    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
-
-        json data;
+service /getWeeklyPullRequestCount on httpListener {
+    resource function get getWeeklyPullRequestCount(string ownername, string reponame, string weekstart) returns json|error {
+        json[] data = [];
         json returnData;
-        http:Client codetabsAPI = check new ("https://api.codetabs.com");
+        
+        string since = time:utcToString(time:utcNow());
+
+       
 
         do {
-            data = check codetabsAPI->get("/v1/loc?github=" + ownername + "/" + reponame);
-            io:println(data);
-            return data;
-        } on fail var e {
-            returnData = {"message": e.toString()};
-            return returnData; 
-        }
-    }
-
-    resource function get getCommitCount(string ownername, string reponame) returns json|error {
-
-        json[] data;
-        json returnData;
-        do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls?state=all&since=" + since);
             returnData = {
                 ownername: ownername,
                 reponame: reponame,
-                commitCount: data.length()
+                WeeklyPullRequestCount: data.length()
             };
         } on fail var e {
             returnData = {"message": e.toString()};
@@ -56,26 +33,4 @@ service /primitive on httpListener {
 
         return returnData;
     }
-
-
-    resource function get getPullRequestCount(string ownername, string reponame) returns json|error {
-
-        json[] data;
-        json returnData;
-        do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
-            returnData = {
-                ownername: ownername,
-                reponame: reponame,
-                PullRequestCount: data.length()
-                
-            
-            };
-        } on fail var e {
-            returnData = {"message": e.toString()};
-        }
-
-        return returnData;
-    }
-
 }
