@@ -1,11 +1,23 @@
 import ballerina/http;
-import ballerina/io;
 import ballerina/os;
+import ballerina/sql;
+import ballerinax/mysql;
+import ballerinax/mysql.driver as _;
+
+mysql:Options mysqlOptions = {
+    ssl: {
+        mode: mysql:SSL_PREFERRED
+    },
+    connectTimeout: 10
+};
+mysql:Client|sql:Error dbClient =new (hostname,username,password,"", port);
+
 
 listener http:Listener httpListener =new (8080);
 string API_KEY = os:getEnv("API_KEY");
 
 http:Client github = check new ("https://api.github.com");
+http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
@@ -22,38 +34,37 @@ service / on httpListener {
 
 
 service /primitive on httpListener {
-
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
-
-        json data;
+        json [] data;
         json returnData;
-        http:Client codetabsAPI = check new ("https://api.codetabs.com");
+        int totalNumberOfLines = 0;
+        json [] languages=[];
 
         do {
-            data = check codetabsAPI->get("/v1/loc?github=" + ownername + "/" + reponame);
-            io:println(data);
-            return data;
-        } on fail var e {
-            returnData = {"message": e.toString()};
-            return returnData; 
-        }
-    }
-
-    resource function get getCommitCount(string ownername, string reponame) returns json|error {
-
-        json[] data;
-        json returnData;
-        do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
-            returnData = {
-                ownername: ownername,
-                reponame: reponame,
-                commitCount: data.length()
+            data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
+            foreach var item in data {
+                int linesOfCode = check item.linesOfCode;
+                totalNumberOfLines += linesOfCode;
+            }
+            foreach var item in data {
+                float lines = check item.lines;
+                float ratio = (lines/totalNumberOfLines)*100;
+                languages.push({
+                    language: check item.language,
+                    lines: check item.lines,
+                    ratio: ratio
+                });
+            }
+            returnData={
+                "ownername":ownername,
+                "reponame":reponame,
+                "totalNumberOfLines":totalNumberOfLines,
+                "languages":languages
             };
         } on fail var e {
             returnData = {"message": e.toString()};
+             
         }
-
         return returnData;
     }
 
