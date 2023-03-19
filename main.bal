@@ -21,8 +21,8 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
-    "X-GitHub-Api-Version":"2022-11-28"
+    "Authorization": "Bearer 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",
+    "X-GitHub-Api-Version": "2022-11-28"
 };
 
 service / on httpListener {
@@ -69,3 +69,44 @@ service /primitive on httpListener {
     }
 
 }
+
+service /complex on httpListener {
+    resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
+        json[] data;
+        int totalIssuesCount=0;
+        float fixedIssuesCount=0;
+        json returnData;
+
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues", headers);
+            totalIssuesCount=data.length();
+
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+            foreach json item in data {
+                do {
+                    var _ = check item.pull_request;
+                    do {
+                        var _ = check item.pull_request.merged_at;
+                        fixedIssuesCount = fixedIssuesCount+1;
+                    }
+                } on fail {
+                    continue;
+                }
+            }
+            float  IssuesFixingFrequency =fixedIssuesCount/totalIssuesCount;
+
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "IssuesFixingFrequency": IssuesFixingFrequency
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+
+        }
+        return returnData;
+    }
+
+}
+
