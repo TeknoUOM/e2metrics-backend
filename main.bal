@@ -2,6 +2,7 @@ import ballerina/http;
 import ballerina/os;
 import ballerina/sql;
 import ballerinax/mysql;
+import ballerina/io;
 import ballerinax/mysql.driver as _;
 
 mysql:Options mysqlOptions = {
@@ -107,6 +108,65 @@ service /complex on httpListener {
         }
         return returnData;
     }
+    
+
+    resource function get getBugFixRatio(string ownername, string reponame) returns json|error {
+        json[] data;
+        int totalWeightedIssues= 0;
+        float fixedIssues = 0;
+        json returnData;
+
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues", headers);
+
+            foreach var issue in data {
+                json [] labels = <json[]>check issue.labels;
+                foreach json label in labels {
+                    if(label.name=="bug"){
+                        totalWeightedIssues+=10;
+                    }else if (label.name == "wontfix") {
+                        totalWeightedIssues += 9;
+                    }
+                }
+            }
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+            foreach json issue in data {
+                do {
+                    var _ = check issue.pull_request;
+                    do {
+                        var _ = check issue.pull_request.merged_at;
+                        json[] labels = <json[]>check issue.labels;
+                        foreach json label in labels {
+                            if (label.name == "bug") {
+                                fixedIssues =fixedIssues + 10;
+                            } else if (label.name == "wontfix") {
+                                fixedIssues = fixedIssues + 9;
+                            }
+                        }
+                    }on fail {
+                        continue;
+                    }
+                } on fail {
+                    continue;
+                }
+            }
+
+            io:println(fixedIssues);
+
+            float BugFixRatio = fixedIssues / totalWeightedIssues;
+
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "BugFixRatio": BugFixRatio
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+
+        }
+        return returnData;
+    }
+
 
 }
 
