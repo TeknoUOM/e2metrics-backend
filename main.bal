@@ -25,20 +25,6 @@ map<string> headers = {
     "X-GitHub-Api-Version":"2022-11-28"
 };
 
-type Language record {
-    string language;
-    int files;
-    int lines;
-    int blanks;
-    int comments;
-    int linesOfCode;
-};
-
-type Code record {
-    int linesOfCode;
-};
-
-
 service / on httpListener {
     resource function get greeting() returns string {
         return "Hello,World";
@@ -48,46 +34,37 @@ service / on httpListener {
 
 
 service /primitive on httpListener {
-
-    // resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
-
-    //     Language[] data;
-    //     json returnData;
-    //     Code[] code;
-
-    //     do {
-    //         data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
-    //         returnData={
-    //             "ownername":ownername,
-    //             "reponame":reponame
-    //         };
-
-    //         foreach Language lang in data{
-    //             string language=lang.language;
-    //             return {language:lang.linesOfCode};
-    //         } 
-    //     } on fail var e {
-    //         returnData = {"message": e.toString()};
-             
-    //     }
-    //     return returnData;
-    // }
-
-    resource function get getCommitCount(string ownername, string reponame) returns json|error {
-
-        json[] data;
+    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
+        json [] data;
         json returnData;
+        int totalNumberOfLines = 0;
+        json [] languages=[];
+
         do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
-            returnData = {
-                ownername: ownername,
-                reponame: reponame,
-                commitCount: data.length()
+            data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
+            foreach var item in data {
+                int linesOfCode = check item.linesOfCode;
+                totalNumberOfLines += linesOfCode;
+            }
+            foreach var item in data {
+                float lines = check item.lines;
+                float ratio = (lines/totalNumberOfLines)*100;
+                languages.push({
+                    language: check item.language,
+                    lines: check item.lines,
+                    ratio: ratio
+                });
+            }
+            returnData={
+                "ownername":ownername,
+                "reponame":reponame,
+                "totalNumberOfLines":totalNumberOfLines,
+                "languages":languages
             };
         } on fail var e {
             returnData = {"message": e.toString()};
+             
         }
-
         return returnData;
     }
 
