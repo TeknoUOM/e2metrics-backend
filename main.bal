@@ -2,7 +2,6 @@ import ballerina/http;
 import ballerina/os;
 import ballerina/sql;
 import ballerinax/mysql;
-import ballerina/io;
 import ballerinax/mysql.driver as _;
 
 mysql:Options mysqlOptions = {
@@ -33,6 +32,20 @@ service / on httpListener {
 
 }
 
+type Label record {
+    string 'name;
+    
+};
+
+type PullRequest record {
+    string 'merged_at;
+};
+
+type Issues record {
+    string 'url;
+    Label [] 'labels;
+    PullRequest 'pull_request;
+};
 
 service /primitive on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
@@ -111,7 +124,7 @@ service /complex on httpListener {
     
 
     resource function get getBugFixRatio(string ownername, string reponame) returns json|error {
-        json[] data;
+        json [] data;
         int totalWeightedIssues= 0;
         float fixedIssues = 0;
         json returnData;
@@ -120,8 +133,8 @@ service /complex on httpListener {
             data = check github->get("/repos/" + ownername + "/" + reponame + "/issues", headers);
 
             foreach var issue in data {
-                json [] labels = <json[]>check issue.labels;
-                foreach json label in labels {
+                Issues issues = check issue.cloneWithType(Issues);
+                foreach Label label in issues.labels {
                     if(label.name=="bug"){
                         totalWeightedIssues+=10;
                     }else if (label.name == "wontfix") {
@@ -130,29 +143,20 @@ service /complex on httpListener {
                 }
             }
             data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+
             foreach json issue in data {
-                do {
-                    var _ = check issue.pull_request;
-                    do {
-                        var _ = check issue.pull_request.merged_at;
-                        json[] labels = <json[]>check issue.labels;
-                        foreach json label in labels {
-                            if (label.name == "bug") {
-                                fixedIssues =fixedIssues + 10;
-                            } else if (label.name == "wontfix") {
-                                fixedIssues = fixedIssues + 9;
-                            }
+                Issues issues = check issue.cloneWithType(Issues);
+                if(issues.pull_request.merged_at!="null"&&issues.labels.length()>0){
+                    foreach Label label in issues.labels{
+                        if (label.name == "bug") {
+                            fixedIssues = fixedIssues + 10;
+                        } else if (label.name == "wontfix") {
+                            fixedIssues = fixedIssues + 9;
                         }
-                    }on fail {
-                        continue;
                     }
-                } on fail {
-                    continue;
                 }
             }
-
-            io:println(fixedIssues);
-
             float BugFixRatio = fixedIssues / totalWeightedIssues;
 
             returnData = {
