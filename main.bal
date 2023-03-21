@@ -2,14 +2,14 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/os;
 
-listener http:Listener httpListener =new (8080);
+listener http:Listener httpListener =new (8084);
 string API_KEY = os:getEnv("API_KEY");
 
 http:Client github = check new ("https://api.github.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version":"2022-11-28"
 };
 
@@ -68,6 +68,49 @@ service /primitive on httpListener {
                 ownername: ownername,
                 reponame: reponame,
                 PullRequestCount: data.length()
+                
+            
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
+
+
+    resource function get getWeeklyCommitCount(string ownername, string reponame) returns json|error {
+
+        map<json> data;
+        json returnData;
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/stats/participation", headers);
+            json[] temp  = <json[]>data.get("all");
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                LastWeekCommitCount:temp[temp.length()-1]
+            };
+        } on fail var e {
+            io:print(e);
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
+
+    resource function get getOpenedIssues(string ownername, string reponame) returns json|error {
+
+        json[] data;
+        json returnData;
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=open", headers);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                OpenedIssuesCount: data.length()
                 
             
             };
