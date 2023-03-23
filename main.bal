@@ -1,8 +1,9 @@
 import ballerina/http;
 import ballerina/io;
 import ballerina/os;
+import ballerina/mime;
 
-listener http:Listener httpListener =new (8084);
+listener http:Listener httpListener =new (8080);
 string API_KEY = os:getEnv("API_KEY");
 
 http:Client github = check new ("https://api.github.com");
@@ -21,25 +22,54 @@ service / on httpListener {
 }
 
 
-http:Client asgardeoClient = check new ("https://api.asgardeo.io");
-
-map<string> headers2 = {
-    "Authorization": "Bearer ac310574-76e5-3223-a5c4-d334c38e6d48"
-};
+http:Client asgardeoClient = check new ("https://api.asgardeo.io",httpVersion = http:HTTP_1_1);
 
 service /primitive2 on httpListener {
 
     resource function get userDetails() returns json|error {
-        json returnData;
+        
+        string clientID="2TvAgxdthV3fBr4bAWFvPqkwd54a";
+        string clientSecrat="lMrOSM2dg1yLIi4FL08QBIoAd_Ma";
+
+        string combineKey = clientID+":"+clientSecrat;
+
+        byte[] keyInBytes = combineKey.toBytes();
+        string encodedString = keyInBytes.toBase64();
+
+        string accessToken;
+
+        do{
+            json response = check asgardeoClient->post("/t/tekno/oauth2/token",
+            {
+                "scope": "internal_login",
+                "grant_type": "client_credentials"
+            },
+        {
+                "Authorization": "Basic " + encodedString
+            },
+        mime:APPLICATION_FORM_URLENCODED
+        );
+
+            accessToken = check response.access_token;
+        }on fail var err {
+            io:println(err);
+        }
+
+
+        map<string> asgardeoClientHeaders = {
+            "Authorization": "Bearer " + accessToken
+        };
+
+        json returnData = {};
+
         do {
-            json data = check asgardeoClient->get("/t/tekno/scim2/Me",headers2);
+            json data = check asgardeoClient->get("/t/tekno/scim2/Me",asgardeoClientHeaders);
             returnData = {
                 name: data
             };
         } on fail var e {
-            io:print(e);
+            returnData={"message":e.toString()};
         }
-
         return returnData;
     }
 }
