@@ -1,6 +1,7 @@
 import ballerina/http;
 import ballerina/io;
 import ballerina/os;
+import ballerina/time;
 
 listener http:Listener httpListener =new (8080);
 string API_KEY = os:getEnv("API_KEY");
@@ -9,7 +10,7 @@ http:Client github = check new ("https://api.github.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version":"2022-11-28"
 };
 
@@ -71,6 +72,53 @@ service /primitive on httpListener {
                 
             
             };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
+}
+
+service /complex on httpListener {
+    resource function get getMeanLeadFixTime(string ownername, string reponame) returns json|error {
+        
+        json[] data;
+        json returnData;
+        int fixTime=0;
+        
+        do{
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+        foreach json item in data{
+            time:Utc t1;
+            time:Utc t2;
+            do{
+                string openedTime = check item.created_at;
+                t1 = check time:utcFromString(openedTime);
+            }
+                    
+            do{
+                string closedTime = check item.closed_at;
+                t2= check time:utcFromString(closedTime);
+                io:println(t2[0]-t1[0]);
+                fixTime+= (t2[0]-t1[0]);
+                
+            }on fail {
+                continue;
+            }
+        
+            
+        }
+            
+            int meanLeadTime = fixTime/data.length();
+            io:println("Mean Lead Time to Fix Isssue = ",meanLeadTime);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame
+            };
+
         } on fail var e {
             returnData = {"message": e.toString()};
         }
