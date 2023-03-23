@@ -21,6 +21,30 @@ service / on httpListener {
 }
 
 
+http:Client asgardeoClient = check new ("https://api.asgardeo.io");
+
+map<string> headers2 = {
+    "Authorization": "Bearer ac310574-76e5-3223-a5c4-d334c38e6d48"
+};
+
+service /primitive2 on httpListener {
+
+    resource function get userDetails() returns json|error {
+        json returnData;
+        do {
+            json data = check asgardeoClient->get("/t/tekno/scim2/Me",headers2);
+            returnData = {
+                name: data
+            };
+        } on fail var e {
+            io:print(e);
+        }
+
+        return returnData;
+    }
+}
+
+
 service /primitive on httpListener {
 
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
