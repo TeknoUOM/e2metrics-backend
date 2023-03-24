@@ -2,7 +2,11 @@ import ballerina/http;
 import ballerina/os;
 import ballerina/sql;
 import ballerinax/mysql;
+import ballerina/io;
+import ballerina/mime;
 import ballerinax/mysql.driver as _;
+import ballerina/time;
+import ballerina/task;
 
 mysql:Options mysqlOptions = {
     ssl: {
@@ -25,6 +29,59 @@ map<string> headers = {
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
+http:Client asgardeoClient = check new ("https://api.asgardeo.io",httpVersion = http:HTTP_1_1);
+
+service /primitive2 on httpListener {
+
+    resource function get userDetails() returns json|error {
+        
+        string clientID="2TvAgxdthV3fBr4bAWFvPqkwd54a";
+        string clientSecrat="lMrOSM2dg1yLIi4FL08QBIoAd_Ma";
+
+        string combineKey = clientID+":"+clientSecrat;
+
+        byte[] keyInBytes = combineKey.toBytes();
+        string encodedString = keyInBytes.toBase64();
+
+        string accessToken;
+
+        do{
+            json response = check asgardeoClient->post("/t/tekno/oauth2/token",
+            {
+                "scope": "internal_login",
+                "grant_type": "client_credentials"
+            },
+        {
+                "Authorization": "Basic " + encodedString
+            },
+        mime:APPLICATION_FORM_URLENCODED
+        );
+
+            accessToken = check response.access_token;
+        }on fail var err {
+            io:println(err);
+        }
+
+
+        map<string> asgardeoClientHeaders = {
+            "Authorization": "Bearer " + accessToken
+        };
+
+        json returnData = {};
+
+        do {
+            json data = check asgardeoClient->get("/t/tekno/scim2/Me",asgardeoClientHeaders);
+            returnData = {
+                name: data
+            };
+        } on fail var e {
+            returnData={"message":e.toString()};
+        }
+        return returnData;
+    }
+}
+
+
 service / on httpListener {
     resource function get greeting() returns string {
         return "Hello,World";
@@ -33,18 +90,32 @@ service / on httpListener {
 }
 
 type Label record {
-    string 'name;
-    
+    string 'name ?;
 };
 
-type PullRequest record {
-    string 'merged_at;
+type pull_request record {
+    string|() 'merged_at ?;
 };
 
 type Issues record {
     string 'url;
     Label [] 'labels;
-    PullRequest 'pull_request;
+    pull_request 'pull_request ?;
+};
+
+type Weights record{
+    
+};
+map<int> weights={
+    "bug": 10,
+    "documentation":2,
+    "duplicate":0,
+    "enhancement": 8,
+    "good first issue": 6,
+    "help wanted":5,
+    "invalid":4,
+    "question":7,
+    "wontfix":0
 };
 
 service /primitive on httpListener {
@@ -92,22 +163,18 @@ service /complex on httpListener {
         json returnData;
 
         do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues", headers);
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
             totalIssuesCount=data.length();
 
             data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
 
-            foreach json item in data {
-                do {
-                    var _ = check item.pull_request;
-                    do {
-                        var _ = check item.pull_request.merged_at;
-                        fixedIssuesCount = fixedIssuesCount+1;
-                    }
-                } on fail {
-                    continue;
+            foreach json issueJson in data {
+                Issues issue = check issueJson.cloneWithType(Issues);
+                if(issue.pull_request?.'merged_at!="null") {
+                    fixedIssuesCount = fixedIssuesCount + 1;
                 }
             }
+
             float  IssuesFixingFrequency =fixedIssuesCount/totalIssuesCount;
 
             returnData = {
@@ -130,33 +197,37 @@ service /complex on httpListener {
         json returnData;
 
         do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues", headers);
-
-            foreach var issue in data {
-                Issues issues = check issue.cloneWithType(Issues);
-                foreach Label label in issues.labels {
-                    if(label.name=="bug"){
-                        totalWeightedIssues+=10;
-                    }else if (label.name == "wontfix") {
-                        totalWeightedIssues += 9;
-                    }
-                }
-            }
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
-
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
 
             foreach json issue in data {
                 Issues issues = check issue.cloneWithType(Issues);
-                if(issues.pull_request.merged_at!="null"&&issues.labels.length()>0){
-                    foreach Label label in issues.labels{
-                        if (label.name == "bug") {
-                            fixedIssues = fixedIssues + 10;
-                        } else if (label.name == "wontfix") {
-                            fixedIssues = fixedIssues + 9;
+                foreach Label label in issues.labels {
+                    string [] weightsKeys=weights.keys();
+
+                    foreach string weight in weightsKeys {
+                        if (label.name == weight) {
+                            totalWeightedIssues += weights.get(weight);
                         }
                     }
                 }
             }
+
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+            foreach json closedJsonIssue in data {
+                Issues closedIssue = check closedJsonIssue.cloneWithType(Issues);
+                if( closedIssue.pull_request?.merged_at != "null" && closedIssue.labels.length() > 0) {
+                    foreach Label label in closedIssue.labels {
+                        string[] weightsKeys = weights.keys();
+
+                        foreach string weight in weightsKeys {
+                            if (label.name == weight) {
+                                totalWeightedIssues += weights.get(weight);
+                            }
+                        }
+                    }
+                }
+            }   
             float BugFixRatio = fixedIssues / totalWeightedIssues;
 
             returnData = {
@@ -165,6 +236,7 @@ service /complex on httpListener {
                 "BugFixRatio": BugFixRatio
             };
         } on fail var e {
+            io:print(e);
             returnData = {"message": e.toString()};
 
         }
@@ -173,4 +245,23 @@ service /complex on httpListener {
 
 
 }
+class Job {
 
+    *task:Job;
+    string msg;
+
+    public function execute() {
+        io:println(self.msg);
+    }
+
+    isolated function init(string msg) {
+        self.msg = msg;
+    }
+}
+
+time:ZoneOffset zoneOffset = {
+    hours: 5,
+    minutes: 30
+};
+
+//task:JobId result = check task:scheduleJobRecurByFrequency(new Job("Hi"), 2.5);
