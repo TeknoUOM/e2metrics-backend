@@ -267,7 +267,6 @@ service /primitive on httpListener {
         }
         return returnData;
     }
-
 }
 class CalculateMetricsPeriodically {
 
@@ -294,3 +293,4 @@ time:Utc newTime = time:utcAddSeconds(currentUtc, 60);
 time:Civil time = time:utcToCivil(newTime);
 
 task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 10, 10, time);
+
