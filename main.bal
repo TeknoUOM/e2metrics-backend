@@ -117,145 +117,167 @@ map<int> weights={
     "question":7,
     "wontfix":0
 };
+const string ownername="MasterD98";
+const string reponame = "tic-tac-toe";
 
-service /primitive on httpListener {
-    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
-        json [] data;
-        json returnData;
-        int totalNumberOfLines = 0;
-        json [] languages=[];
+function getLinesOfCode(string ownername,string reponame = "tic-tac-toe") returns json {
+    json[] data;
+    json returnData;
+    int totalNumberOfLines = 0;
+    json[] languages = [];
 
-        do {
-            data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
-            foreach var item in data {
-                int linesOfCode = check item.linesOfCode;
-                totalNumberOfLines += linesOfCode;
-            }
-            foreach var item in data {
-                float lines = check item.lines;
-                float ratio = (lines/totalNumberOfLines)*100;
-                languages.push({
-                    language: check item.language,
-                    lines: check item.lines,
-                    ratio: ratio
-                });
-            }
-            returnData={
-                "ownername":ownername,
-                "reponame":reponame,
-                "totalNumberOfLines":totalNumberOfLines,
-                "languages":languages
-            };
-        } on fail var e {
-            returnData = {"message": e.toString()};
-             
+    do {
+        data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
+        foreach var item in data {
+            int linesOfCode = check item.linesOfCode;
+            totalNumberOfLines += linesOfCode;
         }
-        return returnData;
+        foreach var item in data {
+            float lines = check item.lines;
+            float ratio = (lines / totalNumberOfLines) * 100;
+            languages.push({
+                language: check item.language,
+                lines: check item.lines,
+                ratio: ratio
+            });
+        }
+        returnData = {
+            "totalNumberOfLines": totalNumberOfLines,
+            "languages": languages
+        };
+    } on fail var e {
+        returnData = {"message": e.toString()};
     }
+    return returnData;
+};
 
-}
+function getIssuesFixingFrequency(string ownername, string reponame = "tic-tac-toe") returns float {
+    json[] data;
+    int totalIssuesCount = 0;
+    float fixedIssuesCount = 0;
+    float IssuesFixingFrequency;
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+        totalIssuesCount = data.length();
+
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+        foreach json issueJson in data {
+            Issues issue = check issueJson.cloneWithType(Issues);
+            if (issue.pull_request?.'merged_at != "null") {
+                fixedIssuesCount = fixedIssuesCount + 1;
+            }
+        }
+
+        IssuesFixingFrequency = fixedIssuesCount / totalIssuesCount;
+    } on fail{
+        return -1;
+    }
+    return IssuesFixingFrequency;
+};
+
+function getBugFixRatio(string ownername, string reponame = "tic-tac-toe") returns float {
+    json[] data;
+    int totalWeightedIssues = 0;
+    float fixedIssues = 0;
+    float BugFixRatio;
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+
+        foreach json issue in data {
+            Issues issues = check issue.cloneWithType(Issues);
+            io:println(issue);
+            foreach Label label in issues.labels {
+                string[] weightsKeys = weights.keys();
+
+                foreach string weight in weightsKeys {
+                    if (label.name == weight) {
+                        totalWeightedIssues += weights.get(weight);
+                    }
+                }
+            }
+        }
+
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+        foreach json closedJsonIssue in data {
+            Issues closedIssue = check closedJsonIssue.cloneWithType(Issues);
+            if (closedIssue.pull_request?.merged_at != "null" && closedIssue.labels.length() > 0) {
+                foreach Label label in closedIssue.labels {
+                    string[] weightsKeys = weights.keys();
+
+                    foreach string weight in weightsKeys {
+                        if (label.name == weight) {
+                            fixedIssues += <float>weights.get(weight);
+                        }
+                    }
+                }
+            }
+        }
+        BugFixRatio = fixedIssues / totalWeightedIssues;        
+    } on fail{
+        return -1;
+    }
+    return BugFixRatio;
+};
+
 
 service /complex on httpListener {
     resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
-        json[] data;
-        int totalIssuesCount=0;
-        float fixedIssuesCount=0;
         json returnData;
 
-        do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
-            totalIssuesCount=data.length();
-
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
-
-            foreach json issueJson in data {
-                Issues issue = check issueJson.cloneWithType(Issues);
-                if(issue.pull_request?.'merged_at!="null") {
-                    fixedIssuesCount = fixedIssuesCount + 1;
-                }
-            }
-
-            float  IssuesFixingFrequency =fixedIssuesCount/totalIssuesCount;
-
-            returnData = {
-                "ownername": ownername,
-                "reponame": reponame,
-                "IssuesFixingFrequency": IssuesFixingFrequency
-            };
-        } on fail var e {
-            returnData = {"message": e.toString()};
-
-        }
+        returnData = {
+            "ownername": ownername,
+            "reponame": reponame,
+            "IssuesFixingFrequency": getIssuesFixingFrequency(ownername, reponame)
+        };
         return returnData;
     }
     
 
     resource function get getBugFixRatio(string ownername, string reponame) returns json|error {
-        json [] data;
-        int totalWeightedIssues= 0;
-        float fixedIssues = 0;
         json returnData;
-
-        do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
-
-            foreach json issue in data {
-                Issues issues = check issue.cloneWithType(Issues);
-                foreach Label label in issues.labels {
-                    string [] weightsKeys=weights.keys();
-
-                    foreach string weight in weightsKeys {
-                        if (label.name == weight) {
-                            totalWeightedIssues += weights.get(weight);
-                        }
-                    }
-                }
-            }
-
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
-
-            foreach json closedJsonIssue in data {
-                Issues closedIssue = check closedJsonIssue.cloneWithType(Issues);
-                if( closedIssue.pull_request?.merged_at != "null" && closedIssue.labels.length() > 0) {
-                    foreach Label label in closedIssue.labels {
-                        string[] weightsKeys = weights.keys();
-
-                        foreach string weight in weightsKeys {
-                            if (label.name == weight) {
-                                totalWeightedIssues += weights.get(weight);
-                            }
-                        }
-                    }
-                }
-            }   
-            float BugFixRatio = fixedIssues / totalWeightedIssues;
-
-            returnData = {
-                "ownername": ownername,
-                "reponame": reponame,
-                "BugFixRatio": BugFixRatio
-            };
-        } on fail var e {
-            io:print(e);
-            returnData = {"message": e.toString()};
-
-        }
+        returnData = {
+            "ownername": ownername,
+            "reponame": reponame,
+            "BugFixRatio": getBugFixRatio(ownername, reponame)
+        };
         return returnData;
     }
 
 
 }
-class Job {
 
-    *task:Job;
-    string msg;
-
-    public function execute() {
-        io:println(self.msg);
+service /primitive on httpListener {
+    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
+        json returendData = getLinesOfCode(ownername, reponame);
+        json returnData;
+        do {
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "totalNumberOfLines": check returendData.totalNumberOfLines,
+                "languages": check returendData.languages
+            };
+        }on fail{
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "message":check returendData.message
+            };
+        }
+        return returnData;
     }
 
-    isolated function init(string msg) {
-        self.msg = msg;
+}
+class CalculateMetricsPeriodically {
+
+    *task:Job;
+
+    public function execute() {
+        
     }
 }
 
@@ -264,4 +286,10 @@ time:ZoneOffset zoneOffset = {
     minutes: 30
 };
 
-//task:JobId result = check task:scheduleJobRecurByFrequency(new Job("Hi"), 2.5);
+time:Utc currentUtc = time:utcNow();
+// Increases the time by three seconds to set the starting delay for the scheduling job.
+time:Utc newTime = time:utcAddSeconds(currentUtc, 5);
+// Gets the `time:Civil` for the given time.
+time:Civil time = time:utcToCivil(newTime);
+
+task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 0, time);
