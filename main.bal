@@ -2,6 +2,7 @@ import ballerina/http;
 import ballerina/io;
 import ballerina/os;
 import ballerina/mime;
+import ballerina/time;
 
 listener http:Listener httpListener =new (8080);
 string API_KEY = os:getEnv("API_KEY");
@@ -168,6 +169,67 @@ service /primitive on httpListener {
                 
             
             };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
+}
+
+
+service /complex on httpListener {
+    resource function get getMeanPullRequestResponseTime(string ownername, string reponame) returns json|error {
+        
+        json[] data;
+        json returnData;
+        int ResponseTime=0;
+        
+        do{            
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+
+
+        foreach json item in data{
+            time:Utc t1;
+            time:Utc t2;
+            do{
+                string createdTime = check item.created_at;
+             t1 = check time:utcFromString(createdTime);
+            }
+                    
+            do{
+                string updatedTime = check item.updated_at;
+                t2= check time:utcFromString(updatedTime);
+                io:println(t2[0] - t1[0]);
+                ResponseTime+= (t2[0] - t1[0]);
+                
+            }on fail {
+                continue;
+            }
+        
+            
+        }
+            
+            int meanResponseTime = (ResponseTime/data.length());
+
+
+
+            string timeInHours = (meanResponseTime/3600).toString();
+            string timeinMinutes = ((meanResponseTime%3600)/60).toString();
+            string timeinSeconds = (meanResponseTime%60).toString();
+
+
+
+
+
+            io:println("Mean Lead Time respond for a pull request = ",meanResponseTime);
+            returnData = {
+                meanResponseTimeInFormat :timeInHours + "hrs  " + timeinMinutes+ "min "  + timeinSeconds + "secs",
+                ownername: ownername,
+                reponame: reponame
+            };
+
         } on fail var e {
             returnData = {"message": e.toString()};
         }
