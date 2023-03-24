@@ -103,9 +103,6 @@ type Issues record {
     pull_request 'pull_request ?;
 };
 
-type Weights record{
-    
-};
 map<int> weights={
     "bug": 10,
     "documentation":2,
@@ -120,7 +117,7 @@ map<int> weights={
 const string ownername="MasterD98";
 const string reponame = "tic-tac-toe";
 
-function getLinesOfCode(string ownername,string reponame = "tic-tac-toe") returns json {
+function getLinesOfCode(string ownername,string reponame) returns json {
     json[] data;
     json returnData;
     int totalNumberOfLines = 0;
@@ -151,7 +148,7 @@ function getLinesOfCode(string ownername,string reponame = "tic-tac-toe") return
     return returnData;
 };
 
-function getIssuesFixingFrequency(string ownername, string reponame = "tic-tac-toe") returns float {
+function getIssuesFixingFrequency(string ownername, string reponame) returns float {
     json[] data;
     int totalIssuesCount = 0;
     float fixedIssuesCount = 0;
@@ -177,7 +174,7 @@ function getIssuesFixingFrequency(string ownername, string reponame = "tic-tac-t
     return IssuesFixingFrequency;
 };
 
-function getBugFixRatio(string ownername, string reponame = "tic-tac-toe") returns float {
+function getBugFixRatio(string ownername, string reponame) returns float {
     json[] data;
     int totalWeightedIssues = 0;
     float fixedIssues = 0;
@@ -277,7 +274,13 @@ class CalculateMetricsPeriodically {
     *task:Job;
 
     public function execute() {
-        
+        json linesOfCode = getLinesOfCode(ownername,reponame);
+        float issuesFixingFrequency = getIssuesFixingFrequency(ownername,reponame);
+        float bugFixRatio = getBugFixRatio(ownername,reponame);
+
+        io:println(linesOfCode);
+        io:println(issuesFixingFrequency);
+        io:println(bugFixRatio);
     }
 }
 
@@ -287,9 +290,7 @@ time:ZoneOffset zoneOffset = {
 };
 
 time:Utc currentUtc = time:utcNow();
-// Increases the time by three seconds to set the starting delay for the scheduling job.
-time:Utc newTime = time:utcAddSeconds(currentUtc, 5);
-// Gets the `time:Civil` for the given time.
+time:Utc newTime = time:utcAddSeconds(currentUtc, 60);
 time:Civil time = time:utcToCivil(newTime);
 
-task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 0, time);
+task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 10, 10, time);
