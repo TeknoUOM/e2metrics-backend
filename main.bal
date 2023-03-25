@@ -10,7 +10,7 @@ http:Client github = check new ("https://api.github.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version":"2022-11-28"
 };
 
@@ -116,7 +116,8 @@ service /complex on httpListener {
             io:println("Mean Lead Time to Fix Isssue = ",meanLeadTime);
             returnData = {
                 ownername: ownername,
-                reponame: reponame
+                reponame: reponame,
+                meanLeadTime:meanLeadTime
             };
 
         } on fail var e {
@@ -126,4 +127,53 @@ service /complex on httpListener {
         return returnData;
     }
 
+
+    resource function get getPullRequestFrequency(string ownername, string reponame) returns json|error {
+
+        json[] data;
+        json returnData;
+        int frequency=0;
+        time:Utc utc = time:utcNow();
+        time:Civil civil = time:utcToCivil(utc);
+        
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+            
+        foreach json item in data{
+            time:Civil openTime;
+                
+            do{
+                string openedTime = check item.created_at;
+                openTime = check time:civilFromString(openedTime);
+                io:println("Converted civil value: " + openTime.toString());
+                if (openTime["month"]==civil["month"]) {
+                frequency=frequency+1;
+                }
+                 
+            }on fail {
+                continue;
+            }
+        
+        }
+            io:println("pullRequestfrequency = ",frequency);
+        
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                pullRequestfrequency: frequency
+                
+            
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+    
+
 }
+
+
+        
+       
