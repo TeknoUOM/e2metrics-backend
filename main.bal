@@ -14,7 +14,7 @@ mysql:Options mysqlOptions = {
     },
     connectTimeout: 10
 };
-mysql:Client|sql:Error dbClient =new (hostname,username,password,"", port);
+mysql:Client dbClient = check new (hostname,username,password,"E2Metrices", port);
 
 
 listener http:Listener httpListener =new (8080);
@@ -185,7 +185,6 @@ function getBugFixRatio(string ownername, string reponame) returns float {
 
         foreach json issue in data {
             Issues issues = check issue.cloneWithType(Issues);
-            io:println(issue);
             foreach Label label in issues.labels {
                 string[] weightsKeys = weights.keys();
 
@@ -246,6 +245,12 @@ service /complex on httpListener {
 
 
 }
+type Perfomance record {
+    string date;
+    string IssuesFixingFrequency;
+    string BugFixRatio;
+    int totalNumberOfLines;
+};
 
 service /primitive on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
@@ -267,6 +272,15 @@ service /primitive on httpListener {
         }
         return returnData;
     }
+
+    resource function get test() returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance`);
+
+
+        return from Perfomance perfomance in Stream
+            select perfomance;
+    }
 }
 class CalculateMetricsPeriodically {
 
@@ -274,12 +288,24 @@ class CalculateMetricsPeriodically {
 
     public function execute() {
         json linesOfCode = getLinesOfCode(ownername,reponame);
+        int totalNumberOfLines;
+        do{
+            totalNumberOfLines= check linesOfCode.totalNumberOfLines;
+        } on fail  {
+        	
+        }
+         
         float issuesFixingFrequency = getIssuesFixingFrequency(ownername,reponame);
         float bugFixRatio = getBugFixRatio(ownername,reponame);
+        time:Utc currentUtc = time:utcNow();
 
-        io:println(linesOfCode);
-        io:println(issuesFixingFrequency);
-        io:println(bugFixRatio);
+        do {
+	        _ = check dbClient->execute(`
+	            INSERT INTO Perfomance (date,IssuesFixingFrequency,BugFixRatio,totalNumberOfLines)
+	            VALUES (${currentUtc}, ${issuesFixingFrequency}, ${bugFixRatio}, ${ totalNumberOfLines});`);
+        } on fail var e  {
+        	io:println(e.toString());
+        }
     }
 }
 
@@ -289,7 +315,7 @@ time:ZoneOffset zoneOffset = {
 };
 
 time:Utc currentUtc = time:utcNow();
-time:Utc newTime = time:utcAddSeconds(currentUtc, 60);
+time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
 time:Civil time = time:utcToCivil(newTime);
 
 task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 10, time);
