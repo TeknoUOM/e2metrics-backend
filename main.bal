@@ -14,10 +14,9 @@ mysql:Options mysqlOptions = {
     },
     connectTimeout: 10
 };
-mysql:Client dbClient = check new (hostname,username,password,"E2Metrices", port);
+mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
-
-listener http:Listener httpListener =new (8080);
+listener http:Listener httpListener = new (8080);
 string API_KEY = os:getEnv("API_KEY");
 
 http:Client github = check new ("https://api.github.com");
@@ -25,27 +24,27 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
-http:Client asgardeoClient = check new ("https://api.asgardeo.io",httpVersion = http:HTTP_1_1);
+http:Client asgardeoClient = check new ("https://api.asgardeo.io", httpVersion = http:HTTP_1_1);
 
 service /primitive2 on httpListener {
 
     resource function get userDetails() returns json|error {
-        
-        string clientID="2TvAgxdthV3fBr4bAWFvPqkwd54a";
-        string clientSecrat="lMrOSM2dg1yLIi4FL08QBIoAd_Ma";
 
-        string combineKey = clientID+":"+clientSecrat;
+        string clientID = "2TvAgxdthV3fBr4bAWFvPqkwd54a";
+        string clientSecrat = "lMrOSM2dg1yLIi4FL08QBIoAd_Ma";
+
+        string combineKey = clientID + ":" + clientSecrat;
 
         byte[] keyInBytes = combineKey.toBytes();
         string encodedString = keyInBytes.toBase64();
 
         string accessToken;
 
-        do{
+        do {
             json response = check asgardeoClient->post("/t/tekno/oauth2/token",
             {
                 "scope": "internal_login",
@@ -58,10 +57,9 @@ service /primitive2 on httpListener {
         );
 
             accessToken = check response.access_token;
-        }on fail var err {
+        } on fail var err {
             io:println(err);
         }
-
 
         map<string> asgardeoClientHeaders = {
             "Authorization": "Bearer " + accessToken
@@ -70,17 +68,16 @@ service /primitive2 on httpListener {
         json returnData = {};
 
         do {
-            json data = check asgardeoClient->get("/t/tekno/scim2/Me",asgardeoClientHeaders);
+            json data = check asgardeoClient->get("/t/tekno/scim2/Me", asgardeoClientHeaders);
             returnData = {
                 name: data
             };
         } on fail var e {
-            returnData={"message":e.toString()};
+            returnData = {"message": e.toString()};
         }
         return returnData;
     }
 }
-
 
 service / on httpListener {
     resource function get greeting() returns string {
@@ -90,34 +87,34 @@ service / on httpListener {
 }
 
 type Label record {
-    string 'name ?;
+    string 'name?;
 };
 
 type pull_request record {
-    string|() 'merged_at ?;
+    string|() 'merged_at?;
 };
 
 type Issues record {
     string 'url;
-    Label [] 'labels;
-    pull_request 'pull_request ?;
+    Label[] 'labels;
+    pull_request 'pull_request?;
 };
 
-map<int> weights={
+map<int> weights = {
     "bug": 10,
-    "documentation":2,
-    "duplicate":0,
+    "documentation": 2,
+    "duplicate": 0,
     "enhancement": 8,
     "good first issue": 6,
-    "help wanted":5,
-    "invalid":4,
-    "question":7,
-    "wontfix":0
+    "help wanted": 5,
+    "invalid": 4,
+    "question": 7,
+    "wontfix": 0
 };
-const string ownername="MasterD98";
+const string ownername = "MasterD98";
 const string reponame = "tic-tac-toe";
 
-function getLinesOfCode(string ownername,string reponame) returns json {
+function getLinesOfCode(string ownername, string reponame) returns json {
     json[] data;
     json returnData;
     int totalNumberOfLines = 0;
@@ -148,7 +145,7 @@ function getLinesOfCode(string ownername,string reponame) returns json {
     return returnData;
 };
 
-function getIssuesFixingFrequency(string ownername, string reponame) returns float {
+function getIssuesFixingFrequency(string ownername, string reponame) returns float|error {
     json[] data;
     int totalIssuesCount = 0;
     float fixedIssuesCount = 0;
@@ -168,8 +165,6 @@ function getIssuesFixingFrequency(string ownername, string reponame) returns flo
         }
 
         IssuesFixingFrequency = fixedIssuesCount / totalIssuesCount;
-    } on fail{
-        return -1;
     }
     return IssuesFixingFrequency;
 };
@@ -212,26 +207,32 @@ function getBugFixRatio(string ownername, string reponame) returns float {
                 }
             }
         }
-        BugFixRatio = fixedIssues / totalWeightedIssues;        
-    } on fail{
+        BugFixRatio = fixedIssues / totalWeightedIssues;
+    } on fail {
         return -1;
     }
     return BugFixRatio;
 };
 
-
 service /complex on httpListener {
     resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
+        float IssuesFixingFrequency;
+        do {
+            IssuesFixingFrequency = check getIssuesFixingFrequency(ownername, reponame);
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "IssuesFixingFrequency": IssuesFixingFrequency
+            };
 
-        returnData = {
-            "ownername": ownername,
-            "reponame": reponame,
-            "IssuesFixingFrequency": getIssuesFixingFrequency(ownername, reponame)
-        };
+        } on fail var e {
+            returnData = {
+                "message": e.toString()
+            };
+        }
         return returnData;
     }
-    
 
     resource function get getBugFixRatio(string ownername, string reponame) returns json|error {
         json returnData;
@@ -243,8 +244,8 @@ service /complex on httpListener {
         return returnData;
     }
 
-
 }
+
 type Perfomance record {
     string date;
     string IssuesFixingFrequency;
@@ -263,48 +264,48 @@ service /primitive on httpListener {
                 "totalNumberOfLines": check returendData.totalNumberOfLines,
                 "languages": check returendData.languages
             };
-        }on fail{
+        } on fail {
             returnData = {
                 "ownername": ownername,
                 "reponame": reponame,
-                "message":check returendData.message
+                "message": check returendData.message
             };
         }
         return returnData;
     }
 
-    resource function get test() returns Perfomance[]|error {
+    resource function get getPerfomances() returns Perfomance[]|error {
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance`);
-
 
         return from Perfomance perfomance in Stream
             select perfomance;
     }
 }
+
 class CalculateMetricsPeriodically {
 
     *task:Job;
 
     public function execute() {
-        json linesOfCode = getLinesOfCode(ownername,reponame);
+        json linesOfCode = getLinesOfCode(ownername, reponame);
         int totalNumberOfLines;
-        do{
-            totalNumberOfLines= check linesOfCode.totalNumberOfLines;
-        } on fail  {
-        	
+        float issuesFixingFrequency;
+        do {
+            totalNumberOfLines = check linesOfCode.totalNumberOfLines;
+            issuesFixingFrequency = check getIssuesFixingFrequency(ownername, reponame);
+        } on fail var e {
+            io:println(e.message());
         }
-         
-        float issuesFixingFrequency = getIssuesFixingFrequency(ownername,reponame);
-        float bugFixRatio = getBugFixRatio(ownername,reponame);
+        float bugFixRatio = getBugFixRatio(ownername, reponame);
         time:Utc currentUtc = time:utcNow();
 
         do {
-	        _ = check dbClient->execute(`
+            _ = check dbClient->execute(`
 	            INSERT INTO Perfomance (date,IssuesFixingFrequency,BugFixRatio,totalNumberOfLines)
-	            VALUES (${currentUtc}, ${issuesFixingFrequency}, ${bugFixRatio}, ${ totalNumberOfLines});`);
-        } on fail var e  {
-        	io:println(e.toString());
+	            VALUES (${currentUtc}, ${issuesFixingFrequency}, ${bugFixRatio}, ${totalNumberOfLines});`);
+        } on fail var e {
+            io:println(e.toString());
         }
     }
 }
