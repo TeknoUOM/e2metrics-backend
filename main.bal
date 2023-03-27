@@ -7,6 +7,8 @@ import ballerina/mime;
 import ballerinax/mysql.driver as _;
 import ballerina/time;
 import ballerina/task;
+import ballerinax/trigger.asgardeo;
+import ballerina/log;
 
 mysql:Options mysqlOptions = {
     ssl: {
@@ -24,11 +26,29 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
 http:Client asgardeoClient = check new ("https://api.asgardeo.io", httpVersion = http:HTTP_1_1);
+
+configurable asgardeo:ListenerConfig config = ?;
+listener asgardeo:Listener webhookListener = new (config, httpListener);
+
+service asgardeo:RegistrationService on webhookListener {
+
+    remote function onAddUser(asgardeo:AddUserEvent event) returns error? {
+        log:printInfo(event.toJsonString());
+    }
+
+    remote function onConfirmSelfSignup(asgardeo:GenericEvent event) returns error? {
+        log:printInfo(event.toJsonString());
+    }
+
+    remote function onAcceptUserInvite(asgardeo:GenericEvent event) returns error? {
+        log:printInfo(event.toJsonString());
+    }
+}
 
 service /primitive2 on httpListener {
 
