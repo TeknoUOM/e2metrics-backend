@@ -7,8 +7,6 @@ import ballerina/mime;
 import ballerinax/mysql.driver as _;
 import ballerina/time;
 import ballerina/task;
-import ballerinax/trigger.asgardeo;
-import ballerina/log;
 
 mysql:Options mysqlOptions = {
     ssl: {
@@ -31,25 +29,6 @@ map<string> headers = {
 };
 
 http:Client asgardeoClient = check new ("https://api.asgardeo.io", httpVersion = http:HTTP_1_1);
-
-configurable asgardeo:ListenerConfig config = ?;
-listener asgardeo:Listener webhookListener = new (config, httpListener);
-
-service asgardeo:RegistrationService on webhookListener {
-
-    remote function onAddUser(asgardeo:AddUserEvent event) returns error? {
-        log:printInfo("Hi");
-        log:printInfo(event.toJsonString());
-    }
-
-    remote function onConfirmSelfSignup(asgardeo:GenericEvent event) returns error? {
-        log:printInfo(event.toJsonString());
-    }
-
-    remote function onAcceptUserInvite(asgardeo:GenericEvent event) returns error? {
-        log:printInfo(event.toJsonString());
-    }
-}
 
 service /primitive2 on httpListener {
 
