@@ -1,3 +1,4 @@
+import ballerina/http;
 
 type Repository record {
     int 'id;
@@ -5,6 +6,17 @@ type Repository record {
     string 'full_name;
     string|() 'description?;
 };
+
+type User record {
+    string user;
+    string repo;
+};
+
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["http://localhost:3000"]
+    }
+}
 
 service /user on httpListener {
     resource function get getAllRepos() returns json|error {
@@ -26,6 +38,28 @@ service /user on httpListener {
                 repos.push(repo);
             }
             response = check repos.cloneWithType(json);
+        } on fail var e {
+            response = {
+                "message": e.toString()
+            };
+        }
+        return response;
+    }
+
+    @http:ResourceConfig {
+        cors: {
+            allowOrigins: ["http://localhost:3000"]
+        }
+    }
+    resource function post addRepo(@http:Payload User user) returns json|error {
+        json response;
+        do {
+            _ = check dbClient->execute(`
+                INSERT INTO Repositories (User,RepoName)
+                VALUES (${user.user}, ${user.repo});`);
+            response = {
+                "message": "success"
+            };
         } on fail var e {
             response = {
                 "message": e.toString()

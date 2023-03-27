@@ -24,7 +24,7 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
