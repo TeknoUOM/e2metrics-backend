@@ -25,7 +25,7 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
@@ -101,6 +101,9 @@ type Issues record {
     string 'url;
     Label [] 'labels;
     pull_request 'pull_request ?;
+};
+type Pulls record {
+    string|() 'created_at?;
 };
 
 map<int> weights={
@@ -244,7 +247,47 @@ service /complex on httpListener {
         return returnData;
     }
 
+    resource function get getMeanLeadTimeForPulls(string ownername, string reponame) returns json|error {
+        
+        json[] data;
+        // Pulls [] arr=[];
+        json[] createdTime=[];
+        int TotalLeadtime=0;
+        float MeanLeadTime=0;
 
+        
+        do{
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+       foreach var item in data {
+        
+            Pulls pullreqs = check item.cloneWithType(Pulls);
+            // io:println(pullreqs?.created_at);
+
+            createdTime.push(pullreqs?.created_at);
+            
+            }
+            on fail{
+                return -1;
+            }
+        }
+
+
+            time:Utc t1;
+            time:Utc t2;
+        
+        foreach int i in 0...(createdTime.length()-2) {
+            do{
+                t1 = check time:utcFromString(<string>createdTime[i]);
+                t2 = check time:utcFromString(<string>createdTime[i+1]);
+                io:println(t1[0]-t2[0]);
+                TotalLeadtime=+(t1[0]-t2[0]);
+            }
+        }
+           MeanLeadTime=<float>TotalLeadtime/(createdTime.length()*60.0);
+           io:println(MeanLeadTime);
+           return MeanLeadTime; 
+    
+    }
 }
 
 service /primitive on httpListener {
