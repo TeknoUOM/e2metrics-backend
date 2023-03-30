@@ -3,7 +3,6 @@ import ballerina/os;
 import ballerina/sql;
 import ballerinax/mysql;
 import ballerina/io;
-import ballerina/mime;
 import ballerinax/mysql.driver as _;
 import ballerina/time;
 import ballerina/task;
@@ -28,44 +27,17 @@ map<string> headers = {
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
-http:Client asgardeoClient = check new ("https://api.asgardeo.io", httpVersion = http:HTTP_1_1);
-
 service /primitive2 on httpListener {
 
     resource function get userDetails() returns json|error {
 
-        string clientID = "2TvAgxdthV3fBr4bAWFvPqkwd54a";
-        string clientSecrat = "lMrOSM2dg1yLIi4FL08QBIoAd_Ma";
-
-        string combineKey = clientID + ":" + clientSecrat;
-
-        byte[] keyInBytes = combineKey.toBytes();
-        string encodedString = keyInBytes.toBase64();
-
-        string accessToken;
-
-        do {
-            json response = check asgardeoClient->post("/t/tekno/oauth2/token",
-            {
-                "scope": "internal_login",
-                "grant_type": "client_credentials"
-            },
-        {
-                "Authorization": "Basic " + encodedString
-            },
-        mime:APPLICATION_FORM_URLENCODED
-        );
-
-            accessToken = check response.access_token;
-        } on fail var err {
-            io:println(err);
-        }
+        json returnData = {};
+        string accessToken = check getAuthToken("internal_user_mgt_view");
+        io:println(accessToken);
 
         map<string> asgardeoClientHeaders = {
             "Authorization": "Bearer " + accessToken
         };
-
-        json returnData = {};
 
         do {
             json data = check asgardeoClient->get("/t/tekno/scim2/Me", asgardeoClientHeaders);
@@ -100,7 +72,7 @@ type Issues record {
     pull_request 'pull_request?;
 };
 
-map<int> weights = {
+const map<int> weights = {
     "bug": 10,
     "documentation": 2,
     "duplicate": 0,
