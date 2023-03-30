@@ -117,7 +117,7 @@ function addUserToGroup(string userId, string groupName) returns json|error {
         allowOrigins: ["http://localhost:3000"]
     }
 }
-service /user on httpListener {
+service / on httpListener {
     resource function get getAllRepos() returns json|error {
         json[] request;
         json response;
