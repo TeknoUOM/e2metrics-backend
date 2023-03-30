@@ -320,11 +320,12 @@ service /complex on httpListener {
 
         
         
-            Event firstEvent=check eventData[eventData.length()-1].cloneWithType(Event);
+            Event firstEvent=check eventData[0].cloneWithType(Event);
             string created_at =<string> firstEvent?.'created_at;
             time:Utc firstEventTime = check time:utcFromString(created_at);
 
             Totaltime=+(<float>(firstEventTime[0] - createdAtTime[0]));
+            io:println(created_at);
         }  
         leadtime=Totaltime/(data.length()*60);
         return leadtime;
