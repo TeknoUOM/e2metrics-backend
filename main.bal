@@ -25,7 +25,7 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
@@ -101,9 +101,15 @@ type Issues record {
     string 'url;
     Label [] 'labels;
     pull_request 'pull_request ?;
+    string 'events_url ?;
+    string 'created_at ?;
 };
 type Pulls record {
     string|() 'created_at?;
+};
+
+type Event record {
+    string|() 'created_at ?;
 };
 
 map<int> weights={
@@ -286,6 +292,51 @@ service /complex on httpListener {
            MeanLeadTime=<float>TotalLeadtime/(createdTime.length()*60.0);
            io:println(MeanLeadTime);
            return MeanLeadTime; 
+    
+    }
+
+    resource function get getResponseTimeforIssue(string ownername, string reponame)returns json|error {
+
+        json[] data;
+        json[] eventData;
+        float Totaltime=0;
+        float leadtime=0;
+
+        do{
+            
+        data= check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+        
+        foreach json jsonIssues in data {
+            Issues issue=check jsonIssues.cloneWithType(Issues);
+            string createdAt = <string>issue.'created_at;
+            time:Utc createdAtTime= check time:utcFromString(createdAt);
+            string eventUrl=<string>issue.events_url;
+            eventUrl=eventUrl.substring(22);
+
+            // io:println(eventUrl); 
+            eventData= check github->get(eventUrl, headers);
+
+        
+
+        
+        
+            Event firstEvent=check eventData[eventData.length()-1].cloneWithType(Event);
+            string created_at =<string> firstEvent?.'created_at;
+            time:Utc firstEventTime = check time:utcFromString(created_at);
+
+            Totaltime=+(<float>(firstEventTime[0] - createdAtTime[0]));
+        }  
+        leadtime=Totaltime/(data.length()*60);
+        return leadtime;
+         
+
+        }on fail{
+
+            return -1;
+
+        }
+         
+        
     
     }
 }
