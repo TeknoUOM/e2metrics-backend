@@ -32,7 +32,7 @@ service /primitive2 on httpListener {
     resource function get userDetails() returns json|error {
 
         json returnData = {};
-        string accessToken = check getAuthToken("internal_user_mgt_view");
+        string accessToken = check getAuthToken("internal_user_mgt_list");
         io:println(accessToken);
 
         map<string> asgardeoClientHeaders = {
@@ -186,7 +186,7 @@ function getBugFixRatio(string ownername, string reponame) returns float {
     return BugFixRatio;
 };
 
-service / on httpListener {
+service /complex on httpListener {
     resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
         float IssuesFixingFrequency;
@@ -225,7 +225,7 @@ type Perfomance record {
     int totalNumberOfLines;
 };
 
-service / on httpListener {
+service /primitive on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
         json returendData = getLinesOfCode(ownername, reponame);
         json returnData;
