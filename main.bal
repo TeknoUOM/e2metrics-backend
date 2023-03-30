@@ -186,7 +186,7 @@ function getBugFixRatio(string ownername, string reponame) returns float {
     return BugFixRatio;
 };
 
-service /complex on httpListener {
+service / on httpListener {
     resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
         float IssuesFixingFrequency;
@@ -225,7 +225,7 @@ type Perfomance record {
     int totalNumberOfLines;
 };
 
-service /primitive on httpListener {
+service / on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
         json returendData = getLinesOfCode(ownername, reponame);
         json returnData;
