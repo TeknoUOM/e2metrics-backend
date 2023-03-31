@@ -10,7 +10,7 @@ http:Client github = check new ("https://api.github.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "Bearer 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",
+    "Authorization": "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",
     "X-GitHub-Api-Version":"2022-11-28"
 };
 
