@@ -1,0 +1,76 @@
+openapi: 3.0.1
+info:
+  title: Primitive
+  version: 0.1.0
+servers:
+- url: "{server}:{port}/primitive"
+  variables:
+    server:
+      default: http://localhost
+    port:
+      default: "8080"
+paths:
+  /getLinesOfCode:
+    get:
+      operationId: getGetlinesofcode
+      parameters:
+      - name: ownername
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: reponame
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Found unexpected output
+          content:
+            text/plain:
+              schema:
+                type: string
+  /getPerfomances:
+    get:
+      operationId: getGetperfomances
+      responses:
+        "200":
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Perfomance'
+        "500":
+          description: Found unexpected output
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Perfomance:
+      required:
+      - BugFixRatio
+      - IssuesFixingFrequency
+      - date
+      - totalNumberOfLines
+      type: object
+      properties:
+        date:
+          type: string
+        IssuesFixingFrequency:
+          type: string
+        BugFixRatio:
+          type: string
+        totalNumberOfLines:
+          type: integer
+          format: int64
