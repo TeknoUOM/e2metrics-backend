@@ -11,7 +11,7 @@ then
 fi
 rm -rf .choreo/build
 mkdir -p .choreo/build
-bal build --sticky --generate-config-schema --observability-included --target-dir .choreo/build || { echo 'Ballerina Build Failed' ; exit 1; }
+bal build --sticky --export-openapi --generate-config-schema --observability-included --target-dir .choreo/build || { echo 'Ballerina Build Failed' ; exit 1; }
 mv .choreo/build/bin/config-schema.json .choreo/
 unzip -p .choreo/build/bin/$(echo $APP_NAME).jar syntax-tree/syntax-tree.json > .choreo/syntax-tree.json
 rm -rf .choreo/build
