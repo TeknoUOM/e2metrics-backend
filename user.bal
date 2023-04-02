@@ -118,6 +118,7 @@ function addUserToGroup(string userId, string groupName) returns json|error {
     }
 }
 service /user on httpListener {
+
     resource function get getAllRepos() returns json|error {
         json[] request;
         json response;

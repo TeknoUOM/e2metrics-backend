@@ -51,13 +51,6 @@ service /primitive2 on httpListener {
     }
 }
 
-service / on httpListener {
-    resource function get greeting() returns string {
-        return "Hello,World";
-    }
-
-}
-
 type Label record {
     string 'name?;
 };
