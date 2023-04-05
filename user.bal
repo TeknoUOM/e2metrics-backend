@@ -7,11 +7,17 @@ const map<string> groupsId = {
     "Free": "b28f3570-dd9e-4fa7-ba62-0e0ede387059"
 };
 
+type Owner record {
+    string 'login?;
+    decimal 'id?;
+};
+
 type Repository record {
     int 'id;
     string 'name;
     string 'full_name;
     string|() 'description?;
+    Owner 'owner?;
 };
 
 type Group record {
@@ -126,14 +132,15 @@ service /user on httpListener {
         Repository repo;
 
         do {
-            request = check github->get("/users/" + ownername + "/repos", headers);
+            request = check github->get("/user/repos", headers);
             foreach json jsonRepo in request {
                 repo = check jsonRepo.cloneWithType(Repository);
                 repo = {
                     id: repo.'id,
                     name: repo.'name,
                     full_name: repo.'full_name,
-                    description: repo?.'description
+                    description: repo?.'description,
+                    owner: repo.'owner
                 };
                 repos.push(repo);
             }

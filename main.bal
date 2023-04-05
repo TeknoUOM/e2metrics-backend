@@ -23,11 +23,12 @@ http:Client codetabsAPI = check new ("https://api.codetabs.com");
 
 map<string> headers = {
     "Accept": "application/vnd.github.v3+json",
-    "Authorization": "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",
+    "Authorization": "Bearer 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",
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
-service /primitive2 on httpListener {
+# Description
+service / on httpListener {
 
     resource function get userDetails() returns json|error {
 
@@ -179,7 +180,8 @@ function getBugFixRatio(string ownername, string reponame) returns float {
     return BugFixRatio;
 };
 
-service /complex on httpListener {
+# Description
+service / on httpListener {
     resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
         float IssuesFixingFrequency;
@@ -304,7 +306,8 @@ type Perfomance record {
     int totalNumberOfLines;
 };
 
-service /primitive on httpListener {
+# Description
+service / on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
         json returendData = getLinesOfCode(ownername, reponame);
         json returnData;
