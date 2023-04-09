@@ -1,4 +1,5 @@
 import ballerina/http;
+import ballerina/io;
 import ballerina/mime;
 
 const map<string> groupsId = {
@@ -29,6 +30,12 @@ type User record {
     string 'userName?;
     string[] 'emails?;
     Group[]|() 'groups?;
+};
+
+type UserInDB record {
+    string 'UserID?;
+    string 'UserName?;
+    string 'GH_AccessToken?;
 };
 
 type UserRequest record {
@@ -120,16 +127,71 @@ function addUserToGroup(string userId, string groupName) returns json|error {
 
 @http:ServiceConfig {
     cors: {
-        allowOrigins: ["http://localhost:3000"]
+        allowOrigins: ["http://localhost:3000"],
+        allowCredentials: true,
+        allowMethods: ["GET", "POST", "OPTIONS"]
     }
 }
 service /user on httpListener {
+    resource function post authorizeToGithub(@http:Payload map<json> reqBody) returns json|error {
+        http:Client github = check new ("https://github.com");
+        string clientId = "9e50af7dd2997cde127a";
+        string clientSecret = "201e65436456a06a98664c74611047bd8bdf16e5";
+        string code = check reqBody.code;
+        string userId = check reqBody.userId;
+        io:println(code);
+        json returnData = {};
+        do {
+            json response = check github->post("/login/oauth/access_token",
+            {
+                client_id: clientId,
+                client_secret: clientSecret,
+                code: code
+            },
+            {
+                Accept: mime:APPLICATION_JSON
+            });
 
-    resource function get getAllRepos() returns json|error {
+            string access_token = check response.access_token;
+
+            do {
+                _ = check dbClient->execute(`
+	            UPDATE Users
+                SET GH_AccessToken = ${access_token}
+	            WHERE UserID=${userId};`);
+            }
+
+            returnData = {
+                res: response
+            };
+
+        } on fail var err {
+            returnData = {
+                "message": err.toString()
+            };
+        }
+        return returnData;
+    }
+
+    resource function get getAllRepos(string userId) returns json|error|http:NotFound {
         json[] request;
         json response;
         Repository[] repos = [];
         Repository repo;
+        UserInDB result;
+        do {
+            result = check dbClient->queryRow(`SELECT * FROM Users WHERE UserID = ${userId}`);
+        } on fail error e {
+            return e;
+        }
+
+        string GH_AccessToken = <string>result.GH_AccessToken;
+
+        map<string> headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": "Bearer " + GH_AccessToken,
+            "X-GitHub-Api-Version": "2022-11-28"
+        };
 
         do {
             request = check github->get("/user/repos", headers);
@@ -185,7 +247,7 @@ service /user on httpListener {
                 _ = check removeUserFromGroup(userId, tempGroupName);
             }
         }
-        json response = check addUserToGroup(userId, groupName);
+        json|error response = check addUserToGroup(userId, groupName);
         return response;
     }
 

@@ -27,31 +27,6 @@ map<string> headers = {
     "X-GitHub-Api-Version": "2022-11-28"
 };
 
-# Description
-service / on httpListener {
-
-    resource function get userDetails() returns json|error {
-
-        json returnData = {};
-        string accessToken = check getAuthToken("internal_user_mgt_list");
-        io:println(accessToken);
-
-        map<string> asgardeoClientHeaders = {
-            "Authorization": "Bearer " + accessToken
-        };
-
-        do {
-            json data = check asgardeoClient->get("/t/tekno/scim2/Me", asgardeoClientHeaders);
-            returnData = {
-                name: data
-            };
-        } on fail var e {
-            returnData = {"message": e.toString()};
-        }
-        return returnData;
-    }
-}
-
 type Label record {
     string 'name?;
 };
@@ -182,7 +157,10 @@ function getBugFixRatio(string ownername, string reponame) returns float {
 
 # Description
 service / on httpListener {
-    resource function get getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
+    resource function get .() returns json|error {
+        return "Hellow Dasith";
+    }
+    resource function get primitive/getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
         float IssuesFixingFrequency;
         do {
@@ -296,18 +274,6 @@ service / on httpListener {
 
         return returnData;
     }
-
-}
-
-type Perfomance record {
-    string date;
-    string IssuesFixingFrequency;
-    string BugFixRatio;
-    int totalNumberOfLines;
-};
-
-# Description
-service / on httpListener {
     resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
         json returendData = getLinesOfCode(ownername, reponame);
         json returnData;
@@ -328,14 +294,22 @@ service / on httpListener {
         return returnData;
     }
 
-    resource function get getPerfomances() returns Perfomance[]|error {
+    resource function get getPerfomances(string userId) returns Perfomance[]|error {
 
-        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance`);
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance WREHE `);
 
         return from Perfomance perfomance in Stream
             select perfomance;
     }
+
 }
+
+type Perfomance record {
+    string date;
+    string IssuesFixingFrequency;
+    string BugFixRatio;
+    int totalNumberOfLines;
+};
 
 class CalculateMetricsPeriodically {
 
@@ -363,11 +337,6 @@ class CalculateMetricsPeriodically {
         }
     }
 }
-
-time:ZoneOffset zoneOffset = {
-    hours: 5,
-    minutes: 30
-};
 
 time:Utc currentUtc = time:utcNow();
 time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
