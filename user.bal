@@ -1,4 +1,12 @@
 import ballerina/http;
+import ballerina/mime;
+import ballerina/io;
+
+const map<string> groupsId = {
+    "Premium": "4fd91b80-0f54-4c33-a600-ccefe62f6a77",
+    "Basic": "8dc035c0-7525-4ff4-8aee-a4771d81eada",
+    "Free": "b28f3570-dd9e-4fa7-ba62-0e0ede387059"
+};
 
 type Repository record {
     int 'id;
@@ -7,9 +15,133 @@ type Repository record {
     string|() 'description?;
 };
 
+type Group record {
+    string 'display?;
+    string 'value?;
+};
+
 type User record {
+    string UserID?;
+    string 'userName?;
+    string[] 'emails?;
+    Group[]|() 'groups?;
+};
+
+type UserRequest record {
     string user;
     string repo;
+};
+
+public function main() returns error? {
+     string accessToken = check getAuthToken("internal_user_mgt_list");
+     io:println(accessToken);
+    
+    }
+
+
+function getUserById(string userId) returns User|error {
+    string accessToken = check getAuthToken("internal_user_mgt_view");
+
+    do {
+        json response = check asgardeoClient->get("/t/tekno/scim2/Users/" + userId, {
+            "Authorization": "Bearer " + accessToken
+        });
+
+        User user = check response.cloneWithType(User);
+        return user;
+    } on fail var err {
+        return err;
+    }
+}
+
+function removeUserFromGroup(string userId, string groupName) returns json|error {
+    string accessToken = check getAuthToken("internal_group_mgt_update");
+
+    string url = "/t/tekno/scim2/Groups/" + groupsId.get(groupName);
+    do {
+        json response = check asgardeoClient->patch(url,
+        {
+            "schemas": [
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+            ],
+            "Operations": [
+                {
+                    "op": "remove",
+                    "path": "members[value eq " + userId + "]"
+                }
+            ]
+        },
+        {
+            "Authorization": "Bearer " + accessToken
+        },
+            mime:APPLICATION_JSON
+        );
+
+        return response;
+    } on fail var err {
+        return err;
+    }
+}
+
+function addUserToGroup(string userId, string groupName) returns json|error {
+    User user = check getUserById(userId);
+    string? username = user.'userName;
+
+    string accessToken = check getAuthToken("internal_group_mgt_update");
+
+    string url = "/t/tekno/scim2/Groups/" + groupsId.get(groupName);
+    do {
+        json response = check asgardeoClient->patch(url,
+        {
+            "schemas": [
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+            ],
+            "Operations": [
+                {
+                    "op": "add",
+                    "value": {
+                        "members": [
+                            {
+                                "display": username,
+                                "value": userId
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "Authorization": "Bearer " + accessToken
+        },
+            mime:APPLICATION_JSON
+        );
+        return response;
+    } on fail var err {
+        return err;
+    }
+}
+
+function getUserDetails() returns User|error {
+    string accessToken = check getAuthToken("internal_user_mgt_list");
+
+    do {
+        json response = check asgardeoClient->get("/t/tekno/scim2/Users", {
+            "Authorization": "Bearer " + accessToken
+        });
+
+        User user = check response.cloneWithType(User);
+        return user;
+    } on fail var err {
+        return err;
+    }
+}
+
+type result record {
+    
+};
+
+type item record {
+    
 };
 
 @http:ServiceConfig {
@@ -17,7 +149,6 @@ type User record {
         allowOrigins: ["http://localhost:3000"]
     }
 }
-
 service /user on httpListener {
     resource function get getAllRepos() returns json|error {
         json[] request;
@@ -27,6 +158,7 @@ service /user on httpListener {
 
         do {
             request = check github->get("/users/" + ownername + "/repos", headers);
+            io:println(request);
             foreach json jsonRepo in request {
                 repo = check jsonRepo.cloneWithType(Repository);
                 repo = {
@@ -51,12 +183,15 @@ service /user on httpListener {
             allowOrigins: ["http://localhost:3000"]
         }
     }
-    resource function post addRepo(@http:Payload User user) returns json|error {
+    resource function post addRepo(@http:Payload UserRequest userRequest) returns json|error {
         json response;
+    
         do {
-            _ = check dbClient->execute(`
+             _= check dbClient->execute(`
+            
+                SELECT * FROM Users;         
                 INSERT INTO Repositories (User,RepoName)
-                VALUES (${user.user}, ${user.repo});`);
+                VALUES (${userRequest.user}, ${userRequest.repo});`);
             response = {
                 "message": "success"
             };
@@ -67,4 +202,55 @@ service /user on httpListener {
         }
         return response;
     }
-}
+
+    resource function put changeUserGroup(string userId, string groupName) returns json|error {
+        User user = check getUserById(userId);
+        Group[] groups = user?.groups ?: [];
+        if (user?.'groups != ()) {
+            foreach Group group in groups {
+                string tempGroupName = <string>group.'display;
+                tempGroupName = tempGroupName.substring(8);
+                _ = check removeUserFromGroup(userId, tempGroupName);
+            }
+        }
+        json response = check addUserToGroup(userId, groupName);
+        return response;
+    }
+
+    resource function post addUserToGroup(string userId, @http:Payload string groupName) returns json|error {
+        json|error response = addUserToGroup(userId, groupName);
+        return response;
+    }
+
+    resource function delete removeUserGroup(string userId, @http:Payload string groupName) returns json|error {
+        json|error response = removeUserFromGroup(userId, groupName);
+        return response;
+    }
+    
+        
+    resource function get getUserDetails() returns error|json[] {
+        
+        string accessToken = check getAuthToken("internal_user_mgt_list");
+        // User user;
+        // User []users=[];
+
+
+
+        do {
+            json request = check asgardeoClient->get("/t/tekno/scim2/Users", {
+                "Authorization": "Bearer " + accessToken
+            });
+            json[] details=<json[]> check request.Resources;
+
+            return details;
+        } on fail var err {
+            return err;
+        }
+    }
+
+
+        
+    }
+
+     
+

@@ -269,14 +269,11 @@ dependencies = [
 	{org = "ballerina", name = "lang.object"},
 	{org = "ballerina", name = "time"}
 ]
-modules = [
-	{org = "ballerina", packageName = "sql", moduleName = "sql"}
-]
 
 [[package]]
 org = "ballerina"
 name = "task"
-version = "2.3.1"
+version = "2.3.2"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"}
@@ -348,7 +345,6 @@ dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "mime"},
 	{org = "ballerina", name = "os"},
-	{org = "ballerina", name = "sql"},
 	{org = "ballerina", name = "task"},
 	{org = "ballerina", name = "time"},
 	{org = "ballerinai", name = "observe"},
