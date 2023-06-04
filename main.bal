@@ -336,7 +336,29 @@ service /primitive on httpListener {
         }
         return returnData;
     }
+
+     resource function get getPullRequestCount(string ownername, string reponame) returns json|error {
+
+        json[] data;
+        json returnData;
+        do {
+            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                PullRequestCount: data.length()
+                
+            
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
 }
+
 class CalculateMetricsPeriodically {
 
     *task:Job;
@@ -345,6 +367,7 @@ class CalculateMetricsPeriodically {
         json linesOfCode = getLinesOfCode(ownername,reponame);
         float issuesFixingFrequency = getIssuesFixingFrequency(ownername,reponame);
         float bugFixRatio = getBugFixRatio(ownername,reponame);
+    
 
         io:println(linesOfCode);
         io:println(issuesFixingFrequency);
@@ -362,3 +385,20 @@ time:Utc newTime = time:utcAddSeconds(currentUtc, 60);
 time:Civil time = time:utcToCivil(newTime);
 
 // task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 10, time);
+
+class SaveMetricsPeriodically{
+    *task:Job;
+    public function execute() {
+        json linesOfCode = getLinesOfCode(ownername,reponame);
+        float issuesFixingFrequency = getIssuesFixingFrequency(ownername,reponame);
+        float bugFixRatio = getBugFixRatio(ownername,reponame);
+        
+
+      
+        
+    }
+}
+
+
+
+ task:JobId result1 = check task:scheduleJobRecurByFrequency(new SaveMetricsPeriodically(), 86400, 10, time);
