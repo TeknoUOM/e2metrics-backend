@@ -1,6 +1,8 @@
 import ballerina/http;
 import ballerina/io;
 import ballerina/mime;
+import ballerina/crypto;
+import ballerina/sql;
 
 const map<string> groupsId = {
     "Premium": "4fd91b80-0f54-4c33-a600-ccefe62f6a77",
@@ -32,15 +34,16 @@ type User record {
     Group[]|() 'groups?;
 };
 
-type UserInDB record {
-    string 'UserID?;
-    string 'UserName?;
-    string 'GH_AccessToken?;
+type RepositoriesInDB record {
+    string 'user?;
+    string 'RepoName?;
+    string 'userId?;
 };
 
 type UserRequest record {
-    string user;
+    string ghUser;
     string repo;
+    string userId;
 };
 
 function getUserById(string userId) returns User|error {
@@ -129,7 +132,7 @@ function addUserToGroup(string userId, string groupName) returns json|error {
     cors: {
         allowOrigins: ["http://localhost:3000"],
         allowCredentials: true,
-        allowMethods: ["GET", "POST", "OPTIONS"]
+        allowMethods: ["GET", "POST", "OPTIONS", "PUT"]
     }
 }
 service /user on httpListener {
@@ -153,11 +156,13 @@ service /user on httpListener {
             });
 
             string access_token = check response.access_token;
+            byte[] data = access_token.toBytes();
+            byte[] cipherText = check crypto:encryptAesCbc(data, encryptkey, initialVector);
 
             do {
                 _ = check dbClient->execute(`
 	            UPDATE Users
-                SET GH_AccessToken = ${access_token}
+                SET GH_AccessToken = ${cipherText}
 	            WHERE UserID=${userId};`);
             }
 
@@ -166,53 +171,26 @@ service /user on httpListener {
             };
 
         } on fail var err {
-            returnData = {
-                "message": err.toString()
-            };
+            return err;
         }
         return returnData;
     }
 
-    resource function get getAllRepos(string userId) returns json|error|http:NotFound {
-        json[] request;
-        json response;
-        Repository[] repos = [];
-        Repository repo;
-        UserInDB result;
+    resource function get getUserAllRepos(string userId) returns json|error|http:NotFound {
+        json[] response = [];
         do {
-            result = check dbClient->queryRow(`SELECT * FROM Users WHERE UserID = ${userId}`);
+
+            stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE userId = ${userId}`);
+
+            // Iterating the returned table.
+            check from RepositoriesInDB repos in resultStream
+                do {
+                    response.push(repos.'RepoName);
+                };
+            return response;
         } on fail error e {
             return e;
         }
-
-        string GH_AccessToken = <string>result.GH_AccessToken;
-
-        map<string> headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": "Bearer " + GH_AccessToken,
-            "X-GitHub-Api-Version": "2022-11-28"
-        };
-
-        do {
-            request = check github->get("/user/repos", headers);
-            foreach json jsonRepo in request {
-                repo = check jsonRepo.cloneWithType(Repository);
-                repo = {
-                    id: repo.'id,
-                    name: repo.'name,
-                    full_name: repo.'full_name,
-                    description: repo?.'description,
-                    owner: repo.'owner
-                };
-                repos.push(repo);
-            }
-            response = check repos.cloneWithType(json);
-        } on fail var e {
-            response = {
-                "message": e.toString()
-            };
-        }
-        return response;
     }
 
     @http:ResourceConfig {
@@ -224,15 +202,32 @@ service /user on httpListener {
         json response;
         do {
             _ = check dbClient->execute(`
-                INSERT INTO Repositories (User,RepoName)
-                VALUES (${userRequest.user}, ${userRequest.repo});`);
+                INSERT INTO Repositories (User,RepoName,userId)
+                VALUES (${userRequest.ghUser}, ${userRequest.repo},${userRequest.userId});`);
             response = {
                 "message": "success"
             };
         } on fail var e {
+            return e;
+        }
+        return response;
+    }
+    resource function get getUserGithubToken(string userId) returns json|error {
+        json response;
+        do {
+            byte[]|() ghToken = check dbClient->queryRow(`
+                SELECT GH_AccessToken FROM Users WHERE UserID=${userId};`);
+            if (ghToken == ()) {
+                return error("no ghToken", message = "no ghToken for user", code = 400);
+            }
+            byte[] plainText = check crypto:decryptAesCbc(ghToken, encryptkey, initialVector);
+
             response = {
-                "message": e.toString()
+                "userId": userId,
+                "ghToken": check string:fromBytes(plainText)
             };
+        } on fail var e {
+            return e;
         }
         return response;
     }
