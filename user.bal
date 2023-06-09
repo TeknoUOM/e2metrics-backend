@@ -35,9 +35,9 @@ type User record {
 };
 
 type RepositoriesInDB record {
-    string 'user?;
-    string 'RepoName?;
-    string 'userId?;
+    string 'Ownername;
+    string 'Reponame;
+    string 'UserID;
 };
 
 type UserRequest record {
@@ -180,12 +180,12 @@ service /user on httpListener {
         json[] response = [];
         do {
 
-            stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE userId = ${userId}`);
+            stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserId = ${userId}`);
 
             // Iterating the returned table.
             check from RepositoriesInDB repos in resultStream
                 do {
-                    response.push(repos.'RepoName);
+                    response.push(repos.'Reponame);
                 };
             return response;
         } on fail error e {
@@ -202,7 +202,7 @@ service /user on httpListener {
         json response;
         do {
             _ = check dbClient->execute(`
-                INSERT INTO Repositories (User,RepoName,userId)
+                INSERT INTO Repositories (Ownername,Reponame,UserId)
                 VALUES (${userRequest.ghUser}, ${userRequest.repo},${userRequest.userId});`);
             response = {
                 "message": "success"
