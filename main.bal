@@ -39,6 +39,16 @@ type Issues record {
     string 'url;
     Label[] 'labels;
     pull_request 'pull_request?;
+    string 'events_url?;
+    string 'created_at?;
+};
+
+type Pulls record {
+    string|() 'created_at?;
+};
+
+type Event record {
+    string|() 'created_at?;
 };
 
 const map<int> weights = {
@@ -55,7 +65,21 @@ const map<int> weights = {
 const string ownername = "MasterD98";
 const string reponame = "tic-tac-toe";
 
-function getLinesOfCode(string ownername, string reponame) returns json {
+function getCommitCount(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    int commitCount;
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
+
+        commitCount = data.length();
+
+    }
+
+    return commitCount;
+};
+
+function getLinesOfCode(string ownername, string reponame) returns json|error {
     json[] data;
     json returnData;
     int totalNumberOfLines = 0;
@@ -80,10 +104,11 @@ function getLinesOfCode(string ownername, string reponame) returns json {
             "totalNumberOfLines": totalNumberOfLines,
             "languages": languages
         };
+        return returnData;
     } on fail var e {
-        returnData = {"message": e.toString()};
+        return e;
     }
-    return returnData;
+
 };
 
 function getIssuesFixingFrequency(string ownername, string reponame) returns float|error {
@@ -106,11 +131,14 @@ function getIssuesFixingFrequency(string ownername, string reponame) returns flo
         }
 
         IssuesFixingFrequency = fixedIssuesCount / totalIssuesCount;
+        return IssuesFixingFrequency;
+    } on fail var e {
+        return e;
     }
-    return IssuesFixingFrequency;
+
 };
 
-function getBugFixRatio(string ownername, string reponame) returns float {
+function getBugFixRatio(string ownername, string reponame) returns float|error {
     json[] data;
     int totalWeightedIssues = 0;
     float fixedIssues = 0;
@@ -149,18 +177,256 @@ function getBugFixRatio(string ownername, string reponame) returns float {
             }
         }
         BugFixRatio = fixedIssues / totalWeightedIssues;
-    } on fail {
-        return -1;
+        return BugFixRatio;
+    } on fail var e {
+        return e;
     }
-    return BugFixRatio;
 };
 
-# Description
+function getMeanLeadFixTime(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    int meanLeadTime;
+    int fixTime = 0;
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
+
+        foreach json item in data {
+            time:Utc t1;
+            time:Utc t2;
+            do {
+                string openedTime = check item.created_at;
+                t1 = check time:utcFromString(openedTime);
+
+                string closedTime = check item.closed_at;
+                t2 = check time:utcFromString(closedTime);
+                fixTime += (t2[0] - t1[0]);
+
+            } on fail {
+                continue;
+            }
+
+        }
+        meanLeadTime = fixTime / data.length();
+
+    }
+
+    return meanLeadTime;
+}
+
+function getPullRequestFrequency(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    int frequency = 0;
+    time:Utc utc = time:utcNow();
+    time:Civil civil = time:utcToCivil(utc);
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+
+        foreach json item in data {
+            time:Civil openTime;
+
+            do {
+                string openedTime = check item.created_at;
+                openTime = check time:civilFromString(openedTime);
+                if (openTime["month"] == civil["month"]) {
+                    frequency = frequency + 1;
+                }
+
+            } on fail {
+                continue;
+            }
+
+        }
+        return frequency;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getWeeklyCommitCount(string ownername, string reponame) returns json|error {
+
+    map<json> data;
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/stats/participation", headers);
+        json[] temp = <json[]>data.get("all");
+        return temp[temp.length() - 1];
+    } on fail var e {
+        return e;
+    }
+}
+
+function getOpenedIssuesCount(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=open", headers);
+        int OpenedIssuesCount = data.length();
+        return OpenedIssuesCount;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getAllIssuesCount(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+        int AllIssuesCount = data.length();
+        return AllIssuesCount;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getWontFixIssuesRatio(string ownername, string reponame) returns float|error {
+
+    json[] data;
+    do {
+        float WontFixIssuesRatio;
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+        int AllIssuesCount = data.length();
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all&labels=wontfix", headers);
+        int WontFixIssuesCount = data.length();
+        WontFixIssuesRatio = <float>(WontFixIssuesCount / AllIssuesCount);
+        return WontFixIssuesRatio;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getMeanPullRequestResponseTime(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    int ResponseTime = 0;
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+
+        foreach json item in data {
+            time:Utc t1;
+            time:Utc t2;
+            do {
+                string createdTime = check item.created_at;
+                t1 = check time:utcFromString(createdTime);
+            }
+
+            do {
+                string updatedTime = check item.updated_at;
+                t2 = check time:utcFromString(updatedTime);
+                ResponseTime += (t2[0] - t1[0]);
+
+            } on fail {
+                continue;
+            }
+
+        }
+
+        int meanResponseTime = (ResponseTime / data.length());
+
+        return meanResponseTime;
+
+    } on fail var e {
+        return e;
+    }
+}
+
+function getPullRequestCount(string ownername, string reponame) returns int|error {
+
+    json[] data;
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+        int pullRequestCount = data.length();
+        return pullRequestCount;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getMeanLeadTimeForPulls(string ownername, string reponame) returns float|error {
+
+    json[] data;
+    json[] createdTime = [];
+    int TotalLeadtime = 0;
+    float MeanLeadTime = 0;
+
+    do {
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
+        foreach var item in data {
+            Pulls pullreqs = check item.cloneWithType(Pulls);
+            createdTime.push(pullreqs?.created_at);
+        }
+    } on fail var e {
+        return e;
+    }
+
+    time:Utc t1;
+    time:Utc t2;
+
+    foreach int i in 0 ... (createdTime.length() - 2) {
+        do {
+            t1 = check time:utcFromString(<string>createdTime[i]);
+            t2 = check time:utcFromString(<string>createdTime[i + 1]);
+            TotalLeadtime = +(t1[0] - t2[0]);
+        }
+        on fail var e {
+            return e;
+        }
+    }
+    MeanLeadTime = <float>TotalLeadtime / (createdTime.length());
+    return MeanLeadTime;
+}
+
+function getResponseTimeforIssue(string ownername, string reponame) returns float|error {
+
+    json[] data;
+    json[] eventData;
+    float Totaltime = 0;
+    float responseTime = 0;
+
+    do {
+
+        data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all", headers);
+
+        foreach json jsonIssues in data {
+            Issues issue = check jsonIssues.cloneWithType(Issues);
+            string createdAt = <string>issue.'created_at;
+            time:Utc createdAtTime = check time:utcFromString(createdAt);
+            string eventUrl = <string>issue.events_url;
+            eventUrl = eventUrl.substring(22);
+            eventData = check github->get(eventUrl, headers);
+
+            Event firstEvent = check eventData[0].cloneWithType(Event);
+            string created_at = <string>firstEvent?.'created_at;
+            time:Utc firstEventTime = check time:utcFromString(created_at);
+
+            Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
+        }
+        responseTime = Totaltime / (data.length());
+        return responseTime;
+
+    } on fail var e {
+
+        return e;
+
+    }
+}
+
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["http://localhost:3000"],
+        allowCredentials: true,
+        allowMethods: ["GET", "POST", "OPTIONS", "PUT"]
+    }
+}
 service / on httpListener {
     resource function get .() returns json|error {
         return "Hellow Dasith";
     }
-    resource function get primitive/getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
+    resource function get metrics/getIssuesFixingFrequency(string ownername, string reponame) returns json|error {
         json returnData;
         float IssuesFixingFrequency;
         do {
@@ -172,95 +438,53 @@ service / on httpListener {
             };
 
         } on fail var e {
-            returnData = {
-                "message": e.toString()
-            };
+            return e;
         }
         return returnData;
     }
 
-    resource function get getBugFixRatio(string ownername, string reponame) returns json|error {
+    resource function get metrics/getBugFixRatio(string ownername, string reponame) returns json|error {
         json returnData;
-        returnData = {
-            "ownername": ownername,
-            "reponame": reponame,
-            "BugFixRatio": getBugFixRatio(ownername, reponame)
-        };
-        return returnData;
+        do {
+            float BugFixRatio = check getBugFixRatio(ownername, reponame);
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "BugFixRatio": BugFixRatio
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
     }
 
-    resource function get getMeanLeadFixTime(string ownername, string reponame) returns json|error {
+    resource function get metrics/getMeanLeadFixTime(string ownername, string reponame) returns json|error {
 
-        json[] data;
         json returnData;
-        int fixTime = 0;
 
         do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=closed", headers);
 
-            foreach json item in data {
-                time:Utc t1;
-                time:Utc t2;
-                do {
-                    string openedTime = check item.created_at;
-                    t1 = check time:utcFromString(openedTime);
-                }
-
-                do {
-                    string closedTime = check item.closed_at;
-                    t2 = check time:utcFromString(closedTime);
-                    io:println(t2[0] - t1[0]);
-                    fixTime += (t2[0] - t1[0]);
-
-                } on fail {
-                    continue;
-                }
-
-            }
-
-            int meanLeadTime = fixTime / data.length();
-            io:println("Mean Lead Time to Fix Isssue = ", meanLeadTime);
+            int meanLeadTime = check getMeanLeadFixTime(ownername, reponame);
             returnData = {
                 ownername: ownername,
                 reponame: reponame,
                 meanLeadTime: meanLeadTime
             };
+            return returnData;
 
         } on fail var e {
-            returnData = {"message": e.toString()};
+            return e;
         }
-
-        return returnData;
     }
 
-    resource function get getPullRequestFrequency(string ownername, string reponame) returns json|error {
+    resource function get metrics/getPullRequestFrequency(string ownername, string reponame) returns json|error {
 
-        json[] data;
         json returnData;
-        int frequency = 0;
-        time:Utc utc = time:utcNow();
-        time:Civil civil = time:utcToCivil(utc);
 
         do {
-            data = check github->get("/repos/" + ownername + "/" + reponame + "/pulls", headers);
 
-            foreach json item in data {
-                time:Civil openTime;
-
-                do {
-                    string openedTime = check item.created_at;
-                    openTime = check time:civilFromString(openedTime);
-                    io:println("Converted civil value: " + openTime.toString());
-                    if (openTime["month"] == civil["month"]) {
-                        frequency = frequency + 1;
-                    }
-
-                } on fail {
-                    continue;
-                }
-
-            }
-            io:println("pullRequestfrequency = ", frequency);
+            int frequency = check getPullRequestFrequency(ownername, reponame);
 
             returnData = {
                 ownername: ownername,
@@ -268,35 +492,167 @@ service / on httpListener {
                 pullRequestfrequency: frequency
 
             };
+            return returnData;
         } on fail var e {
-            returnData = {"message": e.toString()};
+            return e;
         }
 
-        return returnData;
     }
-    resource function get getLinesOfCode(string ownername, string reponame) returns json|error {
-        json returendData = getLinesOfCode(ownername, reponame);
+    resource function get metrics/getLinesOfCode(string ownername, string reponame) returns json|error {
+
+        do {
+            json returnData = check getLinesOfCode(ownername, reponame);
+            returnData = {
+                "ownername": ownername,
+                "reponame": reponame,
+                "totalNumberOfLines": check returnData.totalNumberOfLines,
+                "languages": check returnData.languages
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
+    }
+    resource function get metrics/getWeeklyCommitCount(string ownername, string reponame) returns json|error {
+
         json returnData;
         do {
+            json LastWeekCommitCount = check getWeeklyCommitCount(ownername, reponame);
             returnData = {
-                "ownername": ownername,
-                "reponame": reponame,
-                "totalNumberOfLines": check returendData.totalNumberOfLines,
-                "languages": check returendData.languages
+                ownername: ownername,
+                reponame: reponame,
+                LastWeekCommitCount: LastWeekCommitCount
             };
-        } on fail {
-            returnData = {
-                "ownername": ownername,
-                "reponame": reponame,
-                "message": check returendData.message
-            };
+            return returnData;
+        } on fail var e {
+            return e;
         }
-        return returnData;
+
     }
 
-    resource function get getPerfomances(string userId) returns Perfomance[]|error {
+    resource function get metrics/getOpenedIssuesCount(string ownername, string reponame) returns json|error {
 
-        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance WREHE `);
+        json returnData;
+        do {
+            int OpenedIssuesCount = check getOpenedIssuesCount(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                OpenedIssuesCount: OpenedIssuesCount
+
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
+    }
+    resource function get metrics/getAllIssuesCount(string ownername, string reponame) returns json|error {
+
+        json returnData;
+        do {
+            int AllIssuesCount = check getAllIssuesCount(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                AllIssuesCount: AllIssuesCount
+
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
+    }
+    resource function get metrics/getWontFixIssuesRatio(string ownername, string reponame) returns json|error {
+
+        json returnData;
+        do {
+            float WontFixIssuesRatio = check getWontFixIssuesRatio(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                WontFixIssuesRatio: WontFixIssuesRatio
+
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
+    }
+    resource function get metrics/getMeanPullRequestResponseTime(string ownername, string reponame) returns json|error {
+
+        json returnData;
+        do {
+            int meanResponseTime = check getMeanPullRequestResponseTime(ownername, reponame);
+
+            returnData = {
+                meanResponseTime: meanResponseTime,
+                ownername: ownername,
+                reponame: reponame
+            };
+            return returnData;
+
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get metrics/getPullRequestCount(string ownername, string reponame) returns json|error {
+
+        json returnData;
+        do {
+            int pullRequestCount = check getPullRequestCount(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                PullRequestCount: pullRequestCount
+
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get metrics/getMeanLeadTimeForPulls(string ownername, string reponame) returns json|error {
+
+        json returnData;
+
+        do {
+            float MeanLeadTime = check getMeanLeadTimeForPulls(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                MeanLeadTime: MeanLeadTime
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+    }
+
+    resource function get metrics/getResponseTimeforIssue(string ownername, string reponame) returns json|error {
+
+        json returnData;
+
+        do {
+            float responseTimeforIssue = check getResponseTimeforIssue(ownername, reponame);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                responseTimeforIssue: responseTimeforIssue
+            };
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+
+    }
+
+    resource function get metrics/getPerfomances(string userId) returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance ORDER BY date DESC LIMIT 1`);
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -316,7 +672,12 @@ class CalculateMetricsPeriodically {
     *task:Job;
 
     public function execute() {
-        json linesOfCode = getLinesOfCode(ownername, reponame);
+        json linesOfCode;
+        do {
+            linesOfCode = check getLinesOfCode(ownername, reponame);
+        } on fail {
+
+        }
         int totalNumberOfLines;
         float issuesFixingFrequency;
         do {
@@ -325,7 +686,13 @@ class CalculateMetricsPeriodically {
         } on fail var e {
             io:println(e.message());
         }
-        float bugFixRatio = getBugFixRatio(ownername, reponame);
+        float bugFixRatio;
+        do {
+            bugFixRatio = check getBugFixRatio(ownername, reponame);
+        } on fail {
+
+        }
+
         time:Utc currentUtc = time:utcNow();
 
         do {
