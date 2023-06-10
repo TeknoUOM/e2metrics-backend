@@ -280,7 +280,7 @@ service / on httpListener {
 
     resource function get metrics/getPerfomances(string userId) returns Perfomance[]|error {
 
-        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM Perfomance ORDER BY date DESC LIMIT 1`);
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance ORDER BY DateTime DESC LIMIT 1`);
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -412,3 +412,4 @@ time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
 time:Civil time = time:utcToCivil(newTime);
 
 task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 10, time);
+
