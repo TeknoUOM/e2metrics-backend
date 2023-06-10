@@ -9,6 +9,14 @@ const map<string> groupsId = {
     "Free": "b28f3570-dd9e-4fa7-ba62-0e0ede387059"
 };
 
+type UserDB record {
+    string 'UserID;
+    //string 'UserName;
+    //string 'Layout;
+    //byte[] 'GH_AccessToken;
+    //byte[] 'ProfilePic;
+};
+
 type Owner record {
     string 'login?;
     decimal 'id?;
@@ -60,16 +68,12 @@ function getUserGithubToken(string userId) returns string|error {
     }
 }
 
-function addRepo(UserRequest userRequest) returns json|error {
-    json response;
+function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
     do {
-        _ = check dbClient->execute(`
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 INSERT INTO Repositories (Ownername,Reponame,UserId)
                 VALUES (${userRequest.ghUser}, ${userRequest.repo},${userRequest.userId});`);
-        response = {
-            status: 200
-        };
-        return response;
+        return result;
     } on fail var e {
         return e;
     }
@@ -210,4 +214,108 @@ function addUserToGroup(string userId, string groupName) returns json|error {
     } on fail var err {
         return err;
     }
+}
+
+function changePic(string imageURL, string userId) returns sql:ExecutionResult|error {
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+	            UPDATE Users
+                SET ProfilePic =${imageURL} 
+	            WHERE UserID=${userId} ;`);
+        return result;
+    } on fail var e {
+        return e;
+    }
+
+}
+
+function getPic(string userId) returns byte[]|error {
+    byte[] response;
+
+    do {
+        response = check dbClient->queryRow(`
+                SELECT ProfilePic FROM Users
+	            WHERE UserID=${userId} ;`);
+        return response;
+    } on fail var e {
+        return e;
+    }
+
+}
+
+function getUserDetails(string userId) returns json|error {
+
+    string accessToken = check getAuthToken("internal_user_mgt_view");
+
+    map<string> asgardeoClientHeaders = {
+        "Authorization": "Bearer " + accessToken
+    };
+
+    do {
+        json data = check asgardeoClient->get("/t/tekno/scim2/Users/" + userId, asgardeoClientHeaders);
+        return data;
+    } on fail var e {
+        return e;
+    }
+}
+
+function changeUserDetails(string userId, string email, string number, string givenName, string familyName) returns json|error {
+
+    string accessToken = check getAuthToken("internal_user_mgt_update");
+
+    do {
+        json data = check asgardeoClient->patch("/t/tekno/scim2/Users/" + userId, {
+            "schemas": [
+                "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+            ],
+            "Operations": [
+                {
+                    "op": "replace",
+                    "value": {
+                        "emails": [email]
+                    }
+                },
+                {
+                    "op": "replace",
+                    "value": {
+                        "phoneNumbers": [{"type": "mobile", "value": number}]
+                    }
+                },
+                {
+                    "op": "replace",
+                    "value": {
+                        "name": [{"familyName": familyName, "givenName": givenName}]
+                    }
+                }
+            ]
+        },
+        {
+            "Authorization": "Bearer " + accessToken
+        },
+            mime:APPLICATION_JSON);
+        return data;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getAllUsers() returns json[]|error {
+
+    json[] users = [];
+    stream<UserDB, sql:Error?> resultStream;
+
+    do {
+        resultStream = dbClient->query(`SELECT * FROM Users`);
+        check from UserDB row in resultStream
+            do {
+                json user = check getUserDetails(row.'UserID);
+                users.push(user);
+            };
+    } on fail error e {
+        check resultStream.close();
+        return e;
+    }
+    check resultStream.close();
+    return users;
+
 }

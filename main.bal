@@ -328,8 +328,8 @@ service / on httpListener {
         }
     }
 
-    resource function post user/addRepo(@http:Payload UserRequest userRequest) returns json|error {
-        json response;
+    resource function post user/addRepo(@http:Payload UserRequest userRequest) returns sql:ExecutionResult|error {
+        sql:ExecutionResult|sql:Error response;
         do {
             response = check addRepo(userRequest);
             return response;
@@ -367,14 +367,70 @@ service / on httpListener {
         return response;
     }
 
-    resource function post user/addUserToGroup(string userId, @http:Payload string groupName) returns json|error {
+    resource function post user/addUserToGroup(string userId, string groupName) returns json|error {
         json|error response = addUserToGroup(userId, groupName);
         return response;
     }
 
-    resource function delete user/removeUserGroup(string userId, @http:Payload string groupName) returns json|error {
+    resource function delete user/removeUserGroup(string userId, string groupName) returns json|error {
         json|error response = removeUserFromGroup(userId, groupName);
         return response;
+    }
+
+    resource function post user/changePic(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+        string imageURL = check reqBody.image;
+        string userId = check reqBody.userId;
+        do {
+            sql:ExecutionResult|sql:Error result = check changePic(imageURL, userId);
+            return result;
+        }
+        on fail var e {
+            return e;
+        }
+
+    }
+
+    resource function get user/getPic(string userId) returns json|error {
+        byte[] response;
+
+        do {
+            response = check getPic(userId);
+            return response;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get user/getUserDetails(string userId) returns json|error {
+
+        do {
+            json data = check getUserDetails(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function post user/changeUserDetails(@http:Payload map<json> reqBody) returns json|error {
+        string email = check reqBody.email;
+        string firstName = check reqBody.firstName;
+        string lastName = check reqBody.lastName;
+        string mobile = check reqBody.mobile;
+        string userId = check reqBody.userId;
+
+        do {
+            json data = check changeUserDetails(userId,email,mobile,firstName,lastName);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get user/getAllUsers() returns json[]|error {
+
+        do {
+            json[] data = check getAllUsers();
+            return data;
+        } on fail var e {
+            return e;
+        }
     }
 
 }
@@ -400,6 +456,8 @@ class CalculateMetricsPeriodically {
                     string accessToken = check string:fromBytes(plainText);
                     setRepositoryPerfomance(row.'Ownername, row.'Reponame, row.'UserID, accessToken);
                 };
+
+            check resultStream.close();
         } on fail error e {
             io:println(e.message());
         }
