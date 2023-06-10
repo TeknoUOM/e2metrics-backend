@@ -1,9 +1,9 @@
-public function savePayment(string timestamp,string id,string userId,float amountValue,string amountCurrencyCode,string subscription,string basis) returns json|error {
+public function savePayment(string timestamp,string id,string userId,float amountValue,string amountCurrencyCode,string subscription) returns json|error {
         json returnData = {};
         do {
             _ = check dbClient->execute(`
 	            INSERT INTO Payment
-                VALUES (${timestamp}, ${id},${userId},${amountValue},${amountCurrencyCode},${subscription},${basis})`);
+                VALUES (${timestamp}, ${id},${userId},${amountValue},${amountCurrencyCode},${subscription})`);
                 returnData={
                     status:200
                 };

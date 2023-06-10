@@ -292,9 +292,8 @@ service / on httpListener {
         float amountValue = check reqBody.amount.value;
         string amountCurrencyCode = check reqBody.amount.currency_code;
         string subscription = check reqBody.subscription;
-        string basis = check reqBody.basis;
         do {
-            json returnData = check savePayment(timestamp, id, userId, amountValue, amountCurrencyCode, subscription, basis);
+            json returnData = check savePayment(timestamp, id, userId, amountValue, amountCurrencyCode, subscription);
             return returnData;
         } on fail var e {
             return e;
@@ -329,17 +328,9 @@ service / on httpListener {
         }
     }
 
-    @http:ResourceConfig {
-        cors: {
-            allowOrigins: ["http://localhost:3000"]
-        }
-    }
     resource function post user/addRepo(@http:Payload UserRequest userRequest) returns json|error {
         json response;
         do {
-            _ = check dbClient->execute(`
-                INSERT INTO Repositories (Ownername,Reponame,UserId)
-                VALUES (${userRequest.ghUser}, ${userRequest.repo},${userRequest.userId});`);
             response = check addRepo(userRequest);
             return response;
         } on fail var e {
