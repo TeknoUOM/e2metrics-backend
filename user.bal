@@ -259,6 +259,30 @@ function getUserDetails(string userId) returns json|error {
     }
 }
 
+function getUserReportStatus(string userId) returns int|error {
+    int response;
+    do {
+        response = check dbClient->queryRow(`
+                SELECT isReportsEnable FROM Users
+	            WHERE UserID=${userId} ;`);
+        return response;
+    } on fail var e {
+        return e;
+    }
+}
+
+function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+	            UPDATE Users
+                SET isReportsEnable =${isReportsEnable} 
+	            WHERE UserID=${userId} ;`);
+        return result;
+    } on fail var e {
+        return e;
+    }
+}
+
 function changeUserDetails(string userId, string email, string number, string givenName, string familyName) returns json|error {
 
     string accessToken = check getAuthToken("internal_user_mgt_update");

@@ -299,6 +299,14 @@ service / on httpListener {
             return e;
         }
     }
+    resource function get payment/savePayment(string userId) returns PaymentInDB[]|error {
+        do {
+            PaymentInDB[] returnData = check getUserPayments(userId);
+            return returnData;
+        } on fail var e {
+            return e;
+        }
+    }
     resource function post user/authorizeToGithub(@http:Payload map<json> reqBody) returns json|error {
 
         string code = check reqBody.code;
@@ -417,7 +425,7 @@ service / on httpListener {
         string userId = check reqBody.userId;
 
         do {
-            json data = check changeUserDetails(userId,email,mobile,firstName,lastName);
+            json data = check changeUserDetails(userId, email, mobile, firstName, lastName);
             return data;
         } on fail var e {
             return e;
@@ -427,6 +435,60 @@ service / on httpListener {
 
         do {
             json[] data = check getAllUsers();
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get user/getUsersRepotsStatus(string userId) returns int|error {
+
+        do {
+            int data = check getUserReportStatus(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+
+    resource function post user/setUserReportStatus(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+
+        string userId = check reqBody.userId;
+        boolean isReportsEnable = check reqBody.isReportsEnable;
+
+        do {
+            sql:ExecutionResult data = check setUserReportStatus(userId, isReportsEnable);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get user/getUserAlertLimits(string userId) returns AletLimitsInDB[]|error {
+
+        do {
+            AletLimitsInDB[] data = check getUserAlertLimits(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function post user/setUserAlertLimits(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+        string wontFixIssuesRatioString = check reqBody.wontFixIssuesRatio;
+        float wontFixIssuesRatio = check float:fromString(wontFixIssuesRatioString);
+
+        string weeklyCommitCountString = check reqBody.weeklyCommitCount;
+        int weeklyCommitCount = check int:fromString(weeklyCommitCountString);
+
+        string meanPullRequestResponseTimeString = check reqBody.meanPullRequestResponseTime;
+        int meanPullRequestResponseTime = check int:fromString(meanPullRequestResponseTimeString);
+
+        string meanLeadTimeForPullsString = check reqBody.meanLeadTimeForPulls;
+        float meanLeadTimeForPulls = check float:fromString(meanLeadTimeForPullsString);
+
+        string responseTimeforIssueString = check reqBody.responseTimeforIssue;
+        float responseTimeforIssue = check float:fromString(responseTimeforIssueString);
+        string userId = check reqBody.userId;
+        do {
+            sql:ExecutionResult data = check setUserAlertLimits(userId, wontFixIssuesRatio, weeklyCommitCount, meanPullRequestResponseTime, meanLeadTimeForPulls, responseTimeforIssue);
             return data;
         } on fail var e {
             return e;
