@@ -3,7 +3,7 @@ import ballerina/regex;
 import ballerina/io;
 
 type Perfomance record {
-    string DateTime;
+    string Date;
     string Ownername;
     string Reponame;
     string UserId;

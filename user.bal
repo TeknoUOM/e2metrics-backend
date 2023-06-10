@@ -80,7 +80,7 @@ function getUserAllRepos(string userId) returns json[]|error {
     json[] response = [];
     do {
 
-        stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserId = ${userId}`);
+        stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserID = ${userId}`);
         check from RepositoriesInDB repos in resultStream
             do {
                 response.push(repos.'Reponame);

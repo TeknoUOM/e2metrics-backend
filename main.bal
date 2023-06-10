@@ -280,7 +280,7 @@ service / on httpListener {
 
     resource function get metrics/getPerfomances(string userId) returns Perfomance[]|error {
 
-        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance ORDER BY DateTime DESC LIMIT 1`);
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance ORDER BY Date DESC LIMIT 1`);
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -318,7 +318,7 @@ service / on httpListener {
 
     }
 
-    resource function get user/getUserAllRepos(string userId) returns json|error {
+    resource function get user/getUserAllRepos(string userId) returns json[]|error {
         json[] response = [];
         do {
             response = check getUserAllRepos(userId);
