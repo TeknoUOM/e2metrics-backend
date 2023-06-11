@@ -1,12 +1,19 @@
 import ballerina/sql;
+import ballerina/time;
 
-type AletLimitsInDB record {
-    string 'userId;
+type AlertLimitsInDB record {
+    string 'UserID;
     float 'WontFixIssuesRatio;
     int 'WeeklyCommitCount;
     int 'MeanPullRequestResponseTime;
     float 'MeanLeadTimeForPulls;
     float 'ResponseTimeforIssue;
+};
+
+type AlertsInDB record {
+    string 'UserID;
+    string 'DateTime;
+    string 'Alert;
 };
 
 public function setUserAlertLimits(string userId, float wontFixIssuesRatio, int weeklyCommitCount, int meanPullRequestResponseTime, float meanLeadTimeForPulls, float responseTimeforIssue) returns sql:ExecutionResult|error {
@@ -21,11 +28,37 @@ public function setUserAlertLimits(string userId, float wontFixIssuesRatio, int 
 
 };
 
-public function getUserAlertLimits(string userId) returns AletLimitsInDB[]|error {
+public function getUserAlertLimits(string userId) returns AlertLimitsInDB[]|error {
     do {
 
-        stream<AletLimitsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM AlertLimits WHERE UserID = ${userId}`);
-        return from AletLimitsInDB limits in resultStream
+        stream<AlertLimitsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM AlertLimits WHERE UserID = ${userId}`);
+        return from AlertLimitsInDB limits in resultStream
+            select limits;
+    } on fail error e {
+        return e;
+    }
+
+};
+
+public function setUserAlerts(string userId, string alert) returns sql:ExecutionResult|error {
+
+    string dateTime = time:utcToString(time:utcNow());
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+	            UPDATE Alerts
+                SET DateTime= ${dateTime},Alert=${alert} WHERE UserID=${userId}`);
+        return result;
+    } on fail var err {
+        return err;
+    }
+
+};
+
+public function getUserAlerts(string userId) returns AlertsInDB[]|error {
+    do {
+
+        stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} ORDER BY DateTime DESC LIMIT 20`);
+        return from AlertsInDB limits in resultStream
             select limits;
     } on fail error e {
         return e;

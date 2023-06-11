@@ -50,7 +50,7 @@ type Event record {
     cors: {
         allowOrigins: ["http://localhost:3000"],
         allowCredentials: true,
-        allowMethods: ["GET", "POST", "OPTIONS", "PUT"]
+        allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
     }
 }
 service / on httpListener {
@@ -278,9 +278,9 @@ service / on httpListener {
 
     }
 
-    resource function get metrics/getPerfomances(string userId) returns Perfomance[]|error {
+    resource function get metrics/getRepoLatestPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
 
-        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance ORDER BY Date DESC LIMIT 1`);
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -345,6 +345,17 @@ service / on httpListener {
             return e;
         }
     }
+
+    resource function delete user/removeRepo(@http:Payload UserRequest userRequest) returns sql:ExecutionResult|error {
+        sql:ExecutionResult|sql:Error response;
+        do {
+            response = check removeRepo(userRequest.userId, userRequest.ghUser, userRequest.repo);
+            return response;
+        } on fail var e {
+            return e;
+        }
+    }
+
     resource function get user/getUserGithubToken(string userId) returns json|error {
         json response;
         do {
@@ -462,10 +473,10 @@ service / on httpListener {
             return e;
         }
     }
-    resource function get user/getUserAlertLimits(string userId) returns AletLimitsInDB[]|error {
+    resource function get user/getUserAlertLimits(string userId) returns AlertLimitsInDB[]|error {
 
         do {
-            AletLimitsInDB[] data = check getUserAlertLimits(userId);
+            AlertLimitsInDB[] data = check getUserAlertLimits(userId);
             return data;
         } on fail var e {
             return e;
@@ -489,6 +500,46 @@ service / on httpListener {
         string userId = check reqBody.userId;
         do {
             sql:ExecutionResult data = check setUserAlertLimits(userId, wontFixIssuesRatio, weeklyCommitCount, meanPullRequestResponseTime, meanLeadTimeForPulls, responseTimeforIssue);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+
+    resource function get user/getUserAlerts(string userId) returns AlertsInDB[]|error {
+
+        do {
+            AlertsInDB[] data = check getUserAlerts(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function post user/setUserAlerts(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+        string userId = check reqBody.userId;
+        string alert = check reqBody.alert;
+        do {
+            sql:ExecutionResult data = check setUserAlerts(userId, alert);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+
+    resource function get user/getUserLayout(string userId) returns json|error {
+
+        do {
+            json data = check getUserLayout(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function port user/changeUserLayout(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+        string userId = check reqBody.userId;
+        string layout = check reqBody.layout;
+        do {
+            sql:ExecutionResult data = check changeUserLayout(layout, userId);
             return data;
         } on fail var e {
             return e;

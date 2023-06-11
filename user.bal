@@ -73,6 +73,20 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 INSERT INTO Repositories (Ownername,Reponame,UserId)
                 VALUES (${userRequest.ghUser}, ${userRequest.repo},${userRequest.userId});`);
+
+        string ghToken = check getUserGithubToken(userRequest.userId);
+        setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
+        return result;
+    } on fail var e {
+        return e;
+    }
+
+}
+
+function removeRepo(string userId, string ownername, string reponame) returns sql:ExecutionResult|error {
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+                DELETE FROM Repositories WHERE UserId = ${userId} AND Reponame =${reponame} AND Ownername=${ownername};`);
         return result;
     } on fail var e {
         return e;
@@ -87,7 +101,7 @@ function getUserAllRepos(string userId) returns json[]|error {
         stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserID = ${userId}`);
         check from RepositoriesInDB repos in resultStream
             do {
-                response.push(repos.'Reponame);
+                response.push({reponame: repos.'Reponame, ownername: repos.'Ownername});
             };
         return response;
     } on fail error e {
@@ -229,6 +243,19 @@ function changePic(string imageURL, string userId) returns sql:ExecutionResult|e
 
 }
 
+function changeUserLayout(string layout, string userId) returns sql:ExecutionResult|error {
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+	            UPDATE Users
+                SET Layout =${layout} 
+	            WHERE UserID=${userId} ;`);
+        return result;
+    } on fail var e {
+        return e;
+    }
+
+}
+
 function getPic(string userId) returns byte[]|error {
     byte[] response;
 
@@ -264,6 +291,18 @@ function getUserReportStatus(string userId) returns int|error {
     do {
         response = check dbClient->queryRow(`
                 SELECT isReportsEnable FROM Users
+	            WHERE UserID=${userId} ;`);
+        return response;
+    } on fail var e {
+        return e;
+    }
+}
+
+function getUserLayout(string userId) returns json|error {
+    int response;
+    do {
+        response = check dbClient->queryRow(`
+                SELECT Layout FROM Users
 	            WHERE UserID=${userId} ;`);
         return response;
     } on fail var e {
