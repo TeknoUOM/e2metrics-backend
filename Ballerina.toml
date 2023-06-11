@@ -1,13 +1,8 @@
 [package]
-org = "dasith"
-name = "HelloWorld"
+org = "piyumini"
+name = "webhook"
 version = "0.1.0"
-distribution = "2201.2.0"
-
-[[platform.java11.dependency]]
-groupId = "mysql"
-artifactId = "mysql-connector-java"
-version = "8.0.20"
+distribution = "2201.4.1"
 
 [build-options]
 observabilityIncluded = true
