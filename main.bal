@@ -545,6 +545,15 @@ service / on httpListener {
             return e;
         }
     }
+    resource function get user/getAllUserDetails() returns User[]|error {
+
+        do {
+            User [] data = check getAllUserDetails();
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
 
 }
 

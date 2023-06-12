@@ -43,6 +43,7 @@ public function getUserAlertLimits(string userId) returns AlertLimitsInDB[]|erro
 public function setUserAlerts(string userId, string alert) returns sql:ExecutionResult|error {
 
     string dateTime = time:utcToString(time:utcNow());
+    dateTime = dateTime.substring(0, 19);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Alerts

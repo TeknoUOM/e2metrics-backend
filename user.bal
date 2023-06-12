@@ -163,6 +163,23 @@ function getUserById(string userId) returns User|error {
     }
 }
 
+function getAllUserDetails() returns User[]|error {
+    User[] response = [];
+    do {
+
+        stream<UserDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Users`);
+        check from UserDB user in resultStream
+            do {
+                User userById = check getUserById(user.'UserID);
+                response.push(userById);
+            };
+        return response;
+    } on fail error e {
+        return e;
+    }
+
+}
+
 function removeUserFromGroup(string userId, string groupName) returns json|error {
     string accessToken = check getAuthToken("internal_group_mgt_update");
 
