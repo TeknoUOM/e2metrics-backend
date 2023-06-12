@@ -497,13 +497,23 @@ function getResponseTimeforIssue(string ownername, string reponame, string acces
             eventUrl = eventUrl.substring(22);
             eventData = check github->get(eventUrl, headers);
 
-            Event firstEvent = check eventData[0].cloneWithType(Event);
-            string created_at = <string>firstEvent?.'created_at;
-            time:Utc firstEventTime = check time:utcFromString(created_at);
+            if(eventData.length()!=0){
+                Event firstEvent = check eventData[0].cloneWithType(Event);
+                string created_at = <string>firstEvent?.'created_at;
+                time:Utc firstEventTime = check time:utcFromString(created_at);
 
-            Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
+                Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
+
+            }else{
+                responseTime=0;
+            }
+           
         }
-        responseTime = Totaltime / (data.length());
+        if(data.length()==0){
+            responseTime=0;
+        }else{
+            responseTime = Totaltime / (data.length());
+        }      
         return responseTime;
 
     } on fail var e {
