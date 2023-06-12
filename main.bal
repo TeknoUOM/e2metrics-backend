@@ -119,16 +119,16 @@ function getLinesOfCode(string ownername, string reponame) returns json {
     return returnData;
 };
 
-function getgetCommitCount(string ownername, string reponame) returns int|error {
+function getCommitCount(string ownername, string reponame) returns int|error {
 
     json[] data;
     int commitCount;
     do {
         data = check github->get("/repos/" + ownername + "/" + reponame + "/commits", headers);
-        
+
         commitCount = data.length();
-        
-    } 
+
+    }
 
     return commitCount;
 };
@@ -373,7 +373,7 @@ service /primitive on httpListener {
 
         json returnData;
         do {
-            int commitCount = check getgetCommitCount(ownername,reponame);
+            int commitCount = check getCommitCount(ownername, reponame);
             returnData = {
                 ownername: ownername,
                 reponame: reponame,
@@ -384,6 +384,12 @@ service /primitive on httpListener {
         }
 
         return returnData;
+    }
+
+    @http:ResourceConfig {
+        cors: {
+            allowOrigins: ["http://localhost:3000"]
+        }
     }
 
     resource function get getPerfomances() returns Perfomance[]|error {
@@ -412,7 +418,7 @@ class CalculateMetricsPeriodically {
             issuesFixingFrequency = check getIssuesFixingFrequency(ownername, reponame);
             meanLeadFixTime = check getMeanLeadFixTime(ownername, reponame);
             pullRequestFrequency = check getPullRequestFrequency(ownername, reponame);
-            commitCount = check getgetCommitCount(ownername,reponame);
+            commitCount = check getCommitCount(ownername, reponame);
         } on fail var e {
             io:println(e.message());
         }
