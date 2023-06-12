@@ -214,7 +214,12 @@ function getBugFixRatio(string ownername, string reponame, string accessToken) r
                 }
             }
         }
-        BugFixRatio = fixedIssues / totalWeightedIssues;
+
+        if (totalWeightedIssues == 0) {
+            BugFixRatio = 0;
+        } else {
+            BugFixRatio = fixedIssues / totalWeightedIssues;
+        }
         return BugFixRatio;
     } on fail var e {
         return e;
@@ -251,7 +256,11 @@ function getMeanLeadFixTime(string ownername, string reponame, string accessToke
             }
 
         }
-        meanLeadTime = <float>(fixTime) / data.length();
+        if (data.length() == 0) {
+            meanLeadTime = 0;
+        } else {
+            meanLeadTime = <float>(fixTime) / data.length();
+        }
 
     }
 
