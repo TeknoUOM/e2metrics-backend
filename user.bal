@@ -11,10 +11,12 @@ const map<string> groupsId = {
 
 type UserDB record {
     string 'UserID;
-    //string 'UserName;
-    //string 'Layout;
-    //byte[] 'GH_AccessToken;
-    //byte[] 'ProfilePic;
+    string 'UserName;
+    string|() 'OverviewLayout;
+    string|() 'ComparisonLayout;
+    string|() 'ForecastLayout;
+    byte[]|() 'GH_AccessToken;
+    byte[]|() 'ProfilePic;
 };
 
 type Owner record {
@@ -77,11 +79,10 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
         string ghToken = check getUserGithubToken(userRequest.userId);
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
         return result;
-        
-    } on fail var e {   
+
+    } on fail var e {
         return e;
     }
-    
 
 }
 
@@ -263,11 +264,11 @@ function changePic(string imageURL, string userId) returns sql:ExecutionResult|e
 
 }
 
-function changeUserLayout(string layout, string userId) returns sql:ExecutionResult|error {
+function changeUserLayout(string overviewlayout, string comparisonLayout, string forecastLayout, string userId) returns sql:ExecutionResult|error {
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
-                SET Layout =${layout} 
+                SET OverviewLayout =${overviewlayout} ,ComparisonLayout=${overviewlayout},ForecastLayout=${forecastLayout}
 	            WHERE UserID=${userId} ;`);
         return result;
     } on fail var e {
@@ -319,15 +320,25 @@ function getUserReportStatus(string userId) returns int|error {
 }
 
 function getUserLayout(string userId) returns json|error {
-    int response;
+    json userLayouts;
+    stream<UserDB, sql:Error?> resultStream;
+
     do {
-        response = check dbClient->queryRow(`
-                SELECT Layout FROM Users
-	            WHERE UserID=${userId} ;`);
-        return response;
-    } on fail var e {
+        resultStream = dbClient->query(`SELECT * FROM Users WHERE UserID=${userId} `);
+        check from UserDB row in resultStream
+            do {
+                userLayouts = {
+                    OverviewLayout: row.'OverviewLayout,
+                    ComparisonLayout: row.'ComparisonLayout,
+                    ForecastLayout: row.'ForecastLayout
+                };
+                return userLayouts;
+            };
+    } on fail error e {
+        check resultStream.close();
         return e;
     }
+    check resultStream.close();
 }
 
 function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {
