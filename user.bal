@@ -12,10 +12,12 @@ const map<string> groupsId = {
 
 type UserDB record {
     string 'UserID;
-    //string 'UserName;
-    //string 'Layout;
-    //byte[] 'GH_AccessToken;
-    //byte[] 'ProfilePic;
+    string 'UserName;
+    string|() 'OverviewLayout;
+    string|() 'ComparisonLayout;
+    string|() 'ForecastLayout;
+    byte[]|() 'GH_AccessToken;
+    byte[]|() 'ProfilePic;
 };
 
 type Owner record {
@@ -83,12 +85,10 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
         sql:Error? close = dbClient.close();
         return result;
-        
     } on fail var e {   
         sql:Error? close = dbClient.close();
         return e;
     }
-    
 
 }
 
@@ -184,6 +184,23 @@ function getUserById(string userId) returns User|error {
     }
 }
 
+function getAllUserDetails() returns User[]|error {
+    User[] response = [];
+    do {
+
+        stream<UserDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Users`);
+        check from UserDB user in resultStream
+            do {
+                User userById = check getUserById(user.'UserID);
+                response.push(userById);
+            };
+        return response;
+    } on fail error e {
+        return e;
+    }
+
+}
+
 function removeUserFromGroup(string userId, string groupName) returns json|error {
     string accessToken = check getAuthToken("internal_group_mgt_update");
 
@@ -272,7 +289,7 @@ function changeUserLayout(string layout, string userId) returns sql:ExecutionRes
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
-                SET Layout =${layout} 
+                SET OverviewLayout =${overviewlayout} ,ComparisonLayout=${overviewlayout},ForecastLayout=${forecastLayout}
 	            WHERE UserID=${userId} ;`);
         sql:Error? close = dbClient.close();
         return result;
@@ -332,17 +349,26 @@ function getUserReportStatus(string userId) returns int|error {
 }
 
 function getUserLayout(string userId) returns json|error {
-    int response;
+    json userLayouts;
+    stream<UserDB, sql:Error?> resultStream;
+
     do {
         mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
-        response = check dbClient->queryRow(`
-                SELECT Layout FROM Users
-	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
-        return response;
-    } on fail var e {
+        resultStream = dbClient->query(`SELECT * FROM Users WHERE UserID=${userId} `);
+        check from UserDB row in resultStream
+            do {
+                userLayouts = {
+                    OverviewLayout: row.'OverviewLayout,
+                    ComparisonLayout: row.'ComparisonLayout,
+                    ForecastLayout: row.'ForecastLayout
+                };
+                return userLayouts;
+            };
+    } on fail error e {
+        check resultStream.close();
         return e;
     }
+    check resultStream.close();
 }
 
 function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {

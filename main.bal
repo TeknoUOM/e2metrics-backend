@@ -73,11 +73,11 @@ service / on httpListener {
     }
 
     resource function get metrics/setRepositoryPerfomance(string ownername, string reponame, string UserId, string accessToken) returns json|error {
-        
-        do{
-            check setRepositoryPerfomance(ownername,reponame,UserId,accessToken);
 
-        } on fail var e{
+        do {
+            setRepositoryPerfomance(ownername, reponame, UserId, accessToken);
+
+        } on fail var e {
             return e;
         }
 
@@ -307,11 +307,25 @@ service / on httpListener {
 
     }
 
-    resource function get metrics/getRepoLatestPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+    resource function get metrics/getRepoLatestDailyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
-        sql:Error? close = dbClient.close();
+
+        return from Perfomance perfomance in Stream
+            select perfomance;
+
+    }
+    resource function get metrics/getRepoLatestMonthlyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 30`);
+
+        return from Perfomance perfomance in Stream
+            select perfomance;
+    }
+    resource function get metrics/getRepoLatestWeeklyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 7`);
+
         return from Perfomance perfomance in Stream
             select perfomance;
     }
@@ -565,11 +579,29 @@ service / on httpListener {
             return e;
         }
     }
+    @http:ResourceConfig {
+        cors: {
+            allowOrigins: ["http://localhost:3000"],
+            allowCredentials: true,
+            allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+        }
+    }
     resource function port user/changeUserLayout(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
         string userId = check reqBody.userId;
-        string layout = check reqBody.layout;
+        string overviewlayout = check reqBody.overviewlayout;
+        string comparisonLayout = check reqBody.comparisonLayout;
+        string forecastLayout = check reqBody.forecastLayout;
         do {
-            sql:ExecutionResult data = check changeUserLayout(layout, userId);
+            sql:ExecutionResult data = check changeUserLayout(overviewlayout, comparisonLayout, forecastLayout, userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+    resource function get user/getAllUserDetails() returns User[]|error {
+
+        do {
+            User[] data = check getAllUserDetails();
             return data;
         } on fail var e {
             return e;
@@ -590,6 +622,7 @@ class CalculateMetricsPeriodically {
     *task:Job;
 
     public function execute() {
+        mysql:Client dbClient2;
         do {
             mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
@@ -601,9 +634,13 @@ class CalculateMetricsPeriodically {
                     string accessToken = check string:fromBytes(plainText);
                     setRepositoryPerfomance(row.'Ownername, row.'Reponame, row.'UserID, accessToken);
                 };
-
-            check resultStream.close();
         } on fail error e {
+            io:println(e.message());
+        }
+
+        do {
+            _ = check dbClient2.close();
+        } on fail var e {
             io:println(e.message());
         }
 
