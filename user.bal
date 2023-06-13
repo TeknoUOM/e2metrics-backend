@@ -77,9 +77,11 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
         string ghToken = check getUserGithubToken(userRequest.userId);
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
         return result;
-    } on fail var e {
+        
+    } on fail var e {   
         return e;
     }
+    
 
 }
 
@@ -103,6 +105,7 @@ function getUserAllRepos(string userId) returns json[]|error {
             do {
                 response.push({reponame: repos.'Reponame, ownername: repos.'Ownername});
             };
+        check resultStream.close();
         return response;
     } on fail error e {
         return e;

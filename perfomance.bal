@@ -79,9 +79,14 @@ function setRepositoryPerfomance(string ownername, string reponame, string UserI
         _ = check dbClient->execute(`
 	            INSERT INTO DailyPerfomance (Date,Ownername,Reponame,IssuesFixingFrequency,BugFixRatio,CommitCount,totalNumberOfLines,MeanLeadFixTime,PullRequestFrequency,WeeklyCommitCount,OpenedIssuesCount,AllIssuesCount,WontFixIssuesRatio,MeanPullRequestResponseTime,PullRequestCount,MeanLeadTimeForPulls,ResponseTimeforIssue,UserId)
 	            VALUES (${dateAndTimeArray[0]},${ownername},${reponame},${IssuesFixingFrequency},${BugFixRatio},${CommitCount},${totalNumberOfLines},${MeanLeadFixTime},${PullRequestFrequency},${WeeklyCommitCount},${OpenedIssuesCount},${AllIssuesCount},${WontFixIssuesRatio},${MeanPullRequestResponseTime},${PullRequestCount},${MeanLeadTimeForPulls},${ResponseTimeforIssue},${UserId});`);
+        
     } on fail var e {
         io:println(e.toString());
     }
+    
+    
+    
+    
 }
 
 function getCommitCount(string ownername, string reponame, string accessToken) returns int|error {
@@ -121,11 +126,11 @@ function getLinesOfCode(string ownername, string reponame, string accessToken) r
         }
         foreach var item in data {
             float lines = check item.lines;
-            float ratio = (lines / totalNumberOfLines) * 100;
+            //float ratio = (lines / totalNumberOfLines) * 100;
             languages.push({
                 language: check item.language,
-                lines: check item.lines,
-                ratio: ratio
+                lines: check item.lines
+                //ratio: ratio
             });
         }
         returnData = {
@@ -162,8 +167,12 @@ function getIssuesFixingFrequency(string ownername, string reponame, string acce
                 fixedIssuesCount = fixedIssuesCount + 1;
             }
         }
+        if (totalIssuesCount == 0) {
+            IssuesFixingFrequency = 0;
+        } else {
+            IssuesFixingFrequency = fixedIssuesCount / totalIssuesCount;
+        }
 
-        IssuesFixingFrequency = fixedIssuesCount / totalIssuesCount;
         return IssuesFixingFrequency;
     } on fail var e {
         return e;
@@ -369,7 +378,13 @@ function getWontFixIssuesRatio(string ownername, string reponame, string accessT
         int AllIssuesCount = data.length();
         data = check github->get("/repos/" + ownername + "/" + reponame + "/issues?state=all&labels=wontfix", headers);
         int WontFixIssuesCount = data.length();
-        WontFixIssuesRatio = <float>(WontFixIssuesCount / AllIssuesCount);
+
+        if (AllIssuesCount == 0) {
+            WontFixIssuesRatio = 0;
+        } else {
+            WontFixIssuesRatio = <float>(WontFixIssuesCount / AllIssuesCount);
+        }
+
         return WontFixIssuesRatio;
     } on fail var e {
         return e;
@@ -380,6 +395,7 @@ function getMeanPullRequestResponseTime(string ownername, string reponame, strin
 
     json[] data;
     int ResponseTime = 0;
+    int meanResponseTime;
     map<string> headers = {
         "Accept": "application/vnd.github.v3+json",
         "Authorization": "Bearer " + accessToken,
@@ -407,9 +423,11 @@ function getMeanPullRequestResponseTime(string ownername, string reponame, strin
             }
 
         }
-
-        int meanResponseTime = (ResponseTime / data.length());
-
+        if (data.length() == 0) {
+            meanResponseTime = 0;
+        } else {
+            meanResponseTime = (ResponseTime / data.length());
+        }
         return meanResponseTime;
 
     } on fail var e {
@@ -469,7 +487,12 @@ function getMeanLeadTimeForPulls(string ownername, string reponame, string acces
             return e;
         }
     }
-    MeanLeadTime = <float>TotalLeadtime / (createdTime.length());
+    if (createdTime.length() == 0) {
+        MeanLeadTime = 0;
+    } else {
+        MeanLeadTime = <float>TotalLeadtime / (createdTime.length());
+    }
+
     return MeanLeadTime;
 }
 
@@ -497,23 +520,23 @@ function getResponseTimeforIssue(string ownername, string reponame, string acces
             eventUrl = eventUrl.substring(22);
             eventData = check github->get(eventUrl, headers);
 
-            if(eventData.length()!=0){
+            if (eventData.length() != 0) {
                 Event firstEvent = check eventData[0].cloneWithType(Event);
                 string created_at = <string>firstEvent?.'created_at;
                 time:Utc firstEventTime = check time:utcFromString(created_at);
 
                 Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
 
-            }else{
-                responseTime=0;
+            } else {
+                responseTime = 0;
             }
-           
+
         }
-        if(data.length()==0){
-            responseTime=0;
-        }else{
+        if (data.length() == 0) {
+            responseTime = 0;
+        } else {
             responseTime = Totaltime / (data.length());
-        }      
+        }
         return responseTime;
 
     } on fail var e {

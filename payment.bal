@@ -32,6 +32,7 @@ public function getUserPayments(string userId) returns PaymentInDB[]|error {
             do {
                 responses.push(payment);
             };
+        check resultStream.close();
         return responses;
     } on fail error e {
         return e;

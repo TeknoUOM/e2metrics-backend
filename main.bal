@@ -71,6 +71,17 @@ service / on httpListener {
         return returnData;
     }
 
+    resource function get metrics/setRepositoryPerfomance(string ownername, string reponame, string UserId, string accessToken) returns json|error {
+        
+        do{
+            check setRepositoryPerfomance(ownername,reponame,UserId,accessToken);
+
+        } on fail var e{
+            return e;
+        }
+
+    }
+
     resource function get metrics/getBugFixRatio(string ownername, string reponame, string accessToken) returns json|error {
         json returnData;
         do {
@@ -298,7 +309,7 @@ service / on httpListener {
     resource function get metrics/getRepoLatestPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
-
+        check Stream.close();
         return from Perfomance perfomance in Stream
             select perfomance;
     }
