@@ -1,6 +1,8 @@
 import ballerina/time;
 import ballerina/regex;
 import ballerina/io;
+import ballerina/sql;
+import ballerinax/mysql;
 
 type Perfomance record {
     string Date;
@@ -74,15 +76,20 @@ function setRepositoryPerfomance(string ownername, string reponame, string UserI
 
     string dateTime = time:utcToString(time:utcNow());
     string[] dateAndTimeArray = regex:split(dateTime, "T");
+    
 
     do {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
         _ = check dbClient->execute(`
 	            INSERT INTO DailyPerfomance (Date,Ownername,Reponame,IssuesFixingFrequency,BugFixRatio,CommitCount,totalNumberOfLines,MeanLeadFixTime,PullRequestFrequency,WeeklyCommitCount,OpenedIssuesCount,AllIssuesCount,WontFixIssuesRatio,MeanPullRequestResponseTime,PullRequestCount,MeanLeadTimeForPulls,ResponseTimeforIssue,UserId)
 	            VALUES (${dateAndTimeArray[0]},${ownername},${reponame},${IssuesFixingFrequency},${BugFixRatio},${CommitCount},${totalNumberOfLines},${MeanLeadFixTime},${PullRequestFrequency},${WeeklyCommitCount},${OpenedIssuesCount},${AllIssuesCount},${WontFixIssuesRatio},${MeanPullRequestResponseTime},${PullRequestCount},${MeanLeadTimeForPulls},${ResponseTimeforIssue},${UserId});`);
+        sql:Error? close = dbClient.close();
 
     } on fail var e {
         io:println(e.toString());
     }
+    
 
     do {
         AlertLimitsInDB[] data = check getUserAlertLimits(UserId);

@@ -14,7 +14,8 @@ mysql:Options mysqlOptions = {
     },
     connectTimeout: 10
 };
-mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
+
 
 listener http:Listener httpListener = new (8080);
 string API_KEY = os:getEnv("API_KEY");
@@ -307,9 +308,10 @@ service / on httpListener {
     }
 
     resource function get metrics/getRepoLatestPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
-        check Stream.close();
+        sql:Error? close = dbClient.close();
         return from Perfomance perfomance in Stream
             select perfomance;
     }
@@ -589,8 +591,10 @@ class CalculateMetricsPeriodically {
 
     public function execute() {
         do {
+            mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
             stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
+            sql:Error? close = dbClient.close();
             check from RepositoriesJOINUser row in resultStream
                 do {
                     byte[] plainText = check crypto:decryptAesCbc(row.GH_AccessToken, encryptkey, initialVector);

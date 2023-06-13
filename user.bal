@@ -2,6 +2,7 @@ import ballerina/http;
 import ballerina/mime;
 import ballerina/crypto;
 import ballerina/sql;
+import ballerinax/mysql;
 
 const map<string> groupsId = {
     "Premium": "4fd91b80-0f54-4c33-a600-ccefe62f6a77",
@@ -54,6 +55,7 @@ type UserRequest record {
 };
 
 function getUserGithubToken(string userId) returns string|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         byte[]|() ghToken = check dbClient->queryRow(`
                 SELECT GH_AccessToken FROM Users WHERE UserID=${userId};`);
@@ -62,13 +64,16 @@ function getUserGithubToken(string userId) returns string|error {
         }
         byte[] plainText = check crypto:decryptAesCbc(ghToken, encryptkey, initialVector);
         string accessToken = check string:fromBytes(plainText);
+        sql:Error? close = dbClient.close();
         return accessToken;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 }
 
 function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 INSERT INTO Repositories (Ownername,Reponame,UserId)
@@ -76,9 +81,11 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
 
         string ghToken = check getUserGithubToken(userRequest.userId);
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
+        sql:Error? close = dbClient.close();
         return result;
         
     } on fail var e {   
+        sql:Error? close = dbClient.close();
         return e;
     }
     
@@ -86,11 +93,14 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
 }
 
 function removeRepo(string userId, string ownername, string reponame) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 DELETE FROM Repositories WHERE UserId = ${userId} AND Reponame =${reponame} AND Ownername=${ownername};`);
+        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -98,6 +108,7 @@ function removeRepo(string userId, string ownername, string reponame) returns sq
 
 function getUserAllRepos(string userId) returns json[]|error {
     json[] response = [];
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
 
         stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserID = ${userId}`);
@@ -106,8 +117,10 @@ function getUserAllRepos(string userId) returns json[]|error {
                 response.push({reponame: repos.'Reponame, ownername: repos.'Ownername});
             };
         check resultStream.close();
+        sql:Error? close = dbClient.close();
         return response;
     } on fail error e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -118,6 +131,7 @@ function authorizeToGithub(string code, string userId) returns json|error {
     string clientId = "9e50af7dd2997cde127a";
     string clientSecret = "201e65436456a06a98664c74611047bd8bdf16e5";
     json returnData = {};
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         json response = check github->post("/login/oauth/access_token",
             {
@@ -133,7 +147,9 @@ function authorizeToGithub(string code, string userId) returns json|error {
         byte[] data = access_token.toBytes();
         byte[] cipherText = check crypto:encryptAesCbc(data, encryptkey, initialVector);
 
+        
         do {
+            
             _ = check dbClient->execute(`
 	            UPDATE Users
                 SET GH_AccessToken = ${cipherText}
@@ -143,9 +159,11 @@ function authorizeToGithub(string code, string userId) returns json|error {
         returnData = {
             res: response
         };
+        sql:Error? close = dbClient.close();
         return returnData;
 
     } on fail var err {
+        sql:Error? close = dbClient.close();
         return err;
     }
 
@@ -234,26 +252,32 @@ function addUserToGroup(string userId, string groupName) returns json|error {
 }
 
 function changePic(string imageURL, string userId) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
                 SET ProfilePic =${imageURL} 
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
 }
 
 function changeUserLayout(string layout, string userId) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
                 SET Layout =${layout} 
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -261,13 +285,16 @@ function changeUserLayout(string layout, string userId) returns sql:ExecutionRes
 
 function getPic(string userId) returns byte[]|error {
     byte[] response;
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
         response = check dbClient->queryRow(`
                 SELECT ProfilePic FROM Users
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
         return response;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -292,9 +319,12 @@ function getUserDetails(string userId) returns json|error {
 function getUserReportStatus(string userId) returns int|error {
     int response;
     do {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         response = check dbClient->queryRow(`
                 SELECT isReportsEnable FROM Users
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
+
         return response;
     } on fail var e {
         return e;
@@ -304,9 +334,11 @@ function getUserReportStatus(string userId) returns int|error {
 function getUserLayout(string userId) returns json|error {
     int response;
     do {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         response = check dbClient->queryRow(`
                 SELECT Layout FROM Users
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
         return response;
     } on fail var e {
         return e;
@@ -314,13 +346,16 @@ function getUserLayout(string userId) returns json|error {
 }
 
 function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
                 SET isReportsEnable =${isReportsEnable} 
 	            WHERE UserID=${userId} ;`);
+        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -369,19 +404,24 @@ function getAllUsers() returns json[]|error {
 
     json[] users = [];
     stream<UserDB, sql:Error?> resultStream;
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
+        mysql:Client sqldbClient = check new (hostname, username, password, "E2Metrices", port);
         resultStream = dbClient->query(`SELECT * FROM Users`);
         check from UserDB row in resultStream
             do {
                 json user = check getUserDetails(row.'UserID);
                 users.push(user);
             };
+        sql:Error? close = sqldbClient.close();
     } on fail error e {
         check resultStream.close();
+        sql:Error? close = dbClient.close();
         return e;
     }
     check resultStream.close();
+    
     return users;
 
 }
