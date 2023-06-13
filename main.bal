@@ -14,7 +14,8 @@ mysql:Options mysqlOptions = {
     },
     connectTimeout: 10
 };
-mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
+
 
 listener http:Listener httpListener = new (8080);
 string API_KEY = os:getEnv("API_KEY");
@@ -623,8 +624,10 @@ class CalculateMetricsPeriodically {
     public function execute() {
         mysql:Client dbClient2;
         do {
-            dbClient2 = check new (hostname, username, password, "E2Metrices", port);
-            stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient2->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
+            mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
+            stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
+            sql:Error? close = dbClient.close();
             check from RepositoriesJOINUser row in resultStream
                 do {
                     byte[] plainText = check crypto:decryptAesCbc(row.GH_AccessToken, encryptkey, initialVector);

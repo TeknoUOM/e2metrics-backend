@@ -1,6 +1,8 @@
 import ballerina/time;
 import ballerina/regex;
 import ballerina/io;
+import ballerina/sql;
+import ballerinax/mysql;
 
 type Perfomance record {
     string Date;
@@ -74,19 +76,56 @@ function setRepositoryPerfomance(string ownername, string reponame, string UserI
 
     string dateTime = time:utcToString(time:utcNow());
     string[] dateAndTimeArray = regex:split(dateTime, "T");
+    
 
     do {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
         _ = check dbClient->execute(`
 	            INSERT INTO DailyPerfomance (Date,Ownername,Reponame,IssuesFixingFrequency,BugFixRatio,CommitCount,totalNumberOfLines,MeanLeadFixTime,PullRequestFrequency,WeeklyCommitCount,OpenedIssuesCount,AllIssuesCount,WontFixIssuesRatio,MeanPullRequestResponseTime,PullRequestCount,MeanLeadTimeForPulls,ResponseTimeforIssue,UserId)
 	            VALUES (${dateAndTimeArray[0]},${ownername},${reponame},${IssuesFixingFrequency},${BugFixRatio},${CommitCount},${totalNumberOfLines},${MeanLeadFixTime},${PullRequestFrequency},${WeeklyCommitCount},${OpenedIssuesCount},${AllIssuesCount},${WontFixIssuesRatio},${MeanPullRequestResponseTime},${PullRequestCount},${MeanLeadTimeForPulls},${ResponseTimeforIssue},${UserId});`);
-        
+        sql:Error? close = dbClient.close();
+
     } on fail var e {
         io:println(e.toString());
     }
     
-    
-    
-    
+
+    do {
+        AlertLimitsInDB[] data = check getUserAlertLimits(UserId);
+        io:println(data[0].'UserID);
+        io:println(data[0].'WontFixIssuesRatio);
+
+        if (WontFixIssuesRatio > data[0].'WontFixIssuesRatio) {
+            do {
+                _ = check setUserAlerts(UserId, ownername + "/ " + reponame + "/ " + "Won't Fix Issue Ratio exceeded");
+            }
+        }
+        if(WeeklyCommitCount<=data[0].'WeeklyCommitCount){
+            do {
+                _ = check setUserAlerts(UserId, ownername + "/ " + reponame + "/ " + "Weekly Commit Count is low");
+            }
+        }
+        if (MeanPullRequestResponseTime >= data[0].'MeanPullRequestResponseTime) {
+            do {
+                _ = check setUserAlerts(UserId, ownername + "/ " + reponame + "/ " + "Mean Pull Request Response Time is exceeded");
+            }
+        }
+        if (MeanLeadTimeForPulls >= data[0].'MeanLeadTimeForPulls) {
+            do {
+                _ = check setUserAlerts(UserId, ownername + "/ " + reponame + "/ " + "Mean Lead Time for Pulls exceeded");
+            }
+        }
+        if (ResponseTimeforIssue >= data[0].'ResponseTimeforIssue) {
+            do {
+                _ = check setUserAlerts(UserId, ownername + "/ " + reponame + "/ " + "Response Time for Issue exceeded");
+            }
+        }
+
+    } on fail var e {
+        io:println(e.toString());
+    }
+
 }
 
 function getCommitCount(string ownername, string reponame, string accessToken) returns int|error {
