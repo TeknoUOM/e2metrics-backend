@@ -87,6 +87,23 @@ service / on httpListener {
 
     }
 
+    resource function get metrics/getCommitCount(string ownername, string reponame, string accessToken) returns json|error {
+
+        json returnData;
+        do {
+            int commitCount = check getCommitCount(ownername, reponame, accessToken);
+            returnData = {
+                ownername: ownername,
+                reponame: reponame,
+                commitCount: commitCount
+            };
+        } on fail var e {
+            returnData = {"message": e.toString()};
+        }
+
+        return returnData;
+    }
+
     resource function get metrics/getMeanLeadFixTime(string ownername, string reponame, string accessToken) returns json|error {
 
         json returnData;

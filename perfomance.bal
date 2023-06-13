@@ -214,7 +214,12 @@ function getBugFixRatio(string ownername, string reponame, string accessToken) r
                 }
             }
         }
-        BugFixRatio = fixedIssues / totalWeightedIssues;
+
+        if (totalWeightedIssues == 0) {
+            BugFixRatio = 0;
+        } else {
+            BugFixRatio = fixedIssues / totalWeightedIssues;
+        }
         return BugFixRatio;
     } on fail var e {
         return e;
@@ -251,7 +256,11 @@ function getMeanLeadFixTime(string ownername, string reponame, string accessToke
             }
 
         }
-        meanLeadTime = <float>(fixTime) / data.length();
+        if (data.length() == 0) {
+            meanLeadTime = 0;
+        } else {
+            meanLeadTime = <float>(fixTime) / data.length();
+        }
 
     }
 
@@ -488,13 +497,23 @@ function getResponseTimeforIssue(string ownername, string reponame, string acces
             eventUrl = eventUrl.substring(22);
             eventData = check github->get(eventUrl, headers);
 
-            Event firstEvent = check eventData[0].cloneWithType(Event);
-            string created_at = <string>firstEvent?.'created_at;
-            time:Utc firstEventTime = check time:utcFromString(created_at);
+            if(eventData.length()!=0){
+                Event firstEvent = check eventData[0].cloneWithType(Event);
+                string created_at = <string>firstEvent?.'created_at;
+                time:Utc firstEventTime = check time:utcFromString(created_at);
 
-            Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
+                Totaltime = +(<float>(firstEventTime[0] - createdAtTime[0]));
+
+            }else{
+                responseTime=0;
+            }
+           
         }
-        responseTime = Totaltime / (data.length());
+        if(data.length()==0){
+            responseTime=0;
+        }else{
+            responseTime = Totaltime / (data.length());
+        }      
         return responseTime;
 
     } on fail var e {
