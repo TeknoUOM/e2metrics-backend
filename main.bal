@@ -295,9 +295,23 @@ service / on httpListener {
 
     }
 
-    resource function get metrics/getRepoLatestPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+    resource function get metrics/getRepoLatestDailyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
+
+        return from Perfomance perfomance in Stream
+            select perfomance;
+    }
+    resource function get metrics/getRepoLatestMonthlyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 30`);
+
+        return from Perfomance perfomance in Stream
+            select perfomance;
+    }
+    resource function get metrics/getRepoLatestWeeklyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+
+        stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 7`);
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -565,7 +579,7 @@ service / on httpListener {
     resource function get user/getAllUserDetails() returns User[]|error {
 
         do {
-            User [] data = check getAllUserDetails();
+            User[] data = check getAllUserDetails();
             return data;
         } on fail var e {
             return e;
