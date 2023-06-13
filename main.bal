@@ -15,8 +15,6 @@ mysql:Options mysqlOptions = {
     connectTimeout: 10
 };
 
-
-
 listener http:Listener httpListener = new (8080);
 string API_KEY = os:getEnv("API_KEY");
 
@@ -308,23 +306,26 @@ service / on httpListener {
     }
 
     resource function get metrics/getRepoLatestDailyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
+        sql:Error? close = dbClient.close();
 
         return from Perfomance perfomance in Stream
             select perfomance;
 
     }
     resource function get metrics/getRepoLatestMonthlyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 30`);
-
+        sql:Error? close = dbClient.close();
         return from Perfomance perfomance in Stream
             select perfomance;
     }
     resource function get metrics/getRepoLatestWeeklyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-
+        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 7`);
+        sql:Error? close = dbClient.close();
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -622,10 +623,18 @@ class CalculateMetricsPeriodically {
     *task:Job;
 
     public function execute() {
-        mysql:Client dbClient2;
-        do {
-            mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+        time:Utc currentUtc = time:utcNow();
+        time:Utc newTime = time:utcAddSeconds(currentUtc, 86390);
+        time:Civil time = time:utcToCivil(newTime);
 
+        do {
+            task:JobId _ = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
+        } on fail var e {
+            io:println(e.message());
+        }
+        mysql:Client dbClient;
+        do {
+            dbClient = check new (hostname, username, password, "E2Metrices", port);
             stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
             sql:Error? close = dbClient.close();
             check from RepositoriesJOINUser row in resultStream
@@ -635,12 +644,7 @@ class CalculateMetricsPeriodically {
                     setRepositoryPerfomance(row.'Ownername, row.'Reponame, row.'UserID, accessToken);
                 };
         } on fail error e {
-            io:println(e.message());
-        }
-
-        do {
-            _ = check dbClient2.close();
-        } on fail var e {
+            sql:Error? close = dbClient.close();
             io:println(e.message());
         }
 
@@ -651,5 +655,5 @@ time:Utc currentUtc = time:utcNow();
 time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
 time:Civil time = time:utcToCivil(newTime);
 
-task:JobId result = check task:scheduleJobRecurByFrequency(new CalculateMetricsPeriodically(), 86400, 10, time);
+task:JobId result = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
 

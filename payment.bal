@@ -10,8 +10,8 @@ type PaymentInDB record {
 };
 public function savePayment(string timestamp,string id,string userId,float amountValue,string amountCurrencyCode,string subscription) returns json|error {
         json returnData = {};
-        do {
         mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+        do {
             _ = check dbClient->execute(`
 	            INSERT INTO Payment
                 VALUES (${timestamp}, ${id},${userId},${amountValue},${amountCurrencyCode},${subscription})`);
@@ -21,6 +21,7 @@ public function savePayment(string timestamp,string id,string userId,float amoun
                 };
                 return returnData;
         } on fail var err {
+            sql:Error? close = dbClient.close();
             return err;
         }
         
@@ -28,12 +29,11 @@ public function savePayment(string timestamp,string id,string userId,float amoun
 
 public function getUserPayments(string userId) returns PaymentInDB[]|error {
     PaymentInDB[] responses = [];
-    
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
-        mysql:Client sqldbClient = check new (hostname, username, password, "E2Metrices", port);
-
-        stream<PaymentInDB, sql:Error?> resultStream = sqldbClient->query(`SELECT * FROM Payment WHERE UserID = ${userId}`);
-        sql:Error? close = sqldbClient.close();
+        
+        stream<PaymentInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Payment WHERE UserID = ${userId}`);
+        sql:Error? close = dbClient.close();
         check from PaymentInDB payment in resultStream
             do {
                 responses.push(payment);
@@ -41,6 +41,7 @@ public function getUserPayments(string userId) returns PaymentInDB[]|error {
         check resultStream.close();
         return responses;
     } on fail error e {
+        sql:Error? close = dbClient.close();
         return e;
     }
         

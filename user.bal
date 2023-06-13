@@ -85,7 +85,7 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
         sql:Error? close = dbClient.close();
         return result;
-    } on fail var e {   
+    } on fail var e {
         sql:Error? close = dbClient.close();
         return e;
     }
@@ -147,9 +147,8 @@ function authorizeToGithub(string code, string userId) returns json|error {
         byte[] data = access_token.toBytes();
         byte[] cipherText = check crypto:encryptAesCbc(data, encryptkey, initialVector);
 
-        
         do {
-            
+
             _ = check dbClient->execute(`
 	            UPDATE Users
                 SET GH_AccessToken = ${cipherText}
@@ -186,9 +185,12 @@ function getUserById(string userId) returns User|error {
 
 function getAllUserDetails() returns User[]|error {
     User[] response = [];
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
     do {
 
         stream<UserDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Users`);
+        sql:Error? close = dbClient.close();
         check from UserDB user in resultStream
             do {
                 User userById = check getUserById(user.'UserID);
@@ -196,6 +198,7 @@ function getAllUserDetails() returns User[]|error {
             };
         return response;
     } on fail error e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -284,12 +287,12 @@ function changePic(string imageURL, string userId) returns sql:ExecutionResult|e
 
 }
 
-function changeUserLayout(string layout, string userId) returns sql:ExecutionResult|error {
+function changeUserLayout(string overviewlayout, string comparisonLayout, string forecastLayout, string userId) returns sql:ExecutionResult|error {
     mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
-                SET OverviewLayout =${overviewlayout} ,ComparisonLayout=${overviewlayout},ForecastLayout=${forecastLayout}
+                SET OverviewLayout =${overviewlayout} ,ComparisonLayout=${comparisonLayout},ForecastLayout=${forecastLayout}
 	            WHERE UserID=${userId} ;`);
         sql:Error? close = dbClient.close();
         return result;
@@ -335,8 +338,8 @@ function getUserDetails(string userId) returns json|error {
 
 function getUserReportStatus(string userId) returns int|error {
     int response;
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         response = check dbClient->queryRow(`
                 SELECT isReportsEnable FROM Users
 	            WHERE UserID=${userId} ;`);
@@ -344,6 +347,7 @@ function getUserReportStatus(string userId) returns int|error {
 
         return response;
     } on fail var e {
+        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -351,10 +355,11 @@ function getUserReportStatus(string userId) returns int|error {
 function getUserLayout(string userId) returns json|error {
     json userLayouts;
     stream<UserDB, sql:Error?> resultStream;
-
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
         resultStream = dbClient->query(`SELECT * FROM Users WHERE UserID=${userId} `);
+        sql:Error? close = dbClient.close();
         check from UserDB row in resultStream
             do {
                 userLayouts = {
@@ -365,10 +370,9 @@ function getUserLayout(string userId) returns json|error {
                 return userLayouts;
             };
     } on fail error e {
-        check resultStream.close();
+        sql:Error? close = dbClient.close();
         return e;
     }
-    check resultStream.close();
 }
 
 function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {
@@ -433,21 +437,20 @@ function getAllUsers() returns json[]|error {
     mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
-        mysql:Client sqldbClient = check new (hostname, username, password, "E2Metrices", port);
         resultStream = dbClient->query(`SELECT * FROM Users`);
         check from UserDB row in resultStream
             do {
                 json user = check getUserDetails(row.'UserID);
                 users.push(user);
             };
-        sql:Error? close = sqldbClient.close();
+        sql:Error? close = dbClient.close();
     } on fail error e {
         check resultStream.close();
         sql:Error? close = dbClient.close();
         return e;
     }
     check resultStream.close();
-    
+
     return users;
 
 }
