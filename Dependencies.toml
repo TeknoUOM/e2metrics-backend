@@ -249,9 +249,6 @@ dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"}
 ]
-modules = [
-	{org = "ballerina", packageName = "os", moduleName = "os"}
-]
 
 [[package]]
 org = "ballerina"
@@ -354,7 +351,6 @@ dependencies = [
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "mime"},
-	{org = "ballerina", name = "os"},
 	{org = "ballerina", name = "regex"},
 	{org = "ballerina", name = "sql"},
 	{org = "ballerina", name = "task"},

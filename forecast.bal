@@ -1,5 +1,4 @@
 import ballerina/sql;
-import ballerinax/mysql;
 import ballerina/time;
 import ballerina/regex;
 
@@ -84,7 +83,6 @@ function getForecast(string UserId, string ownername, string reponame) returns j
     int count = 0;
 
     sql:ParameterizedQuery query1 = `SELECT * FROM E2Metrices.DailyPerfomance WHERE UserId=${UserId} AND reponame=${reponame} AND ownername=${ownername}`;
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     stream<Perfomance, sql:Error?> queryResult = dbClient->query(query1);
     check from Perfomance performance in queryResult

@@ -1,5 +1,4 @@
 import ballerina/http;
-import ballerina/os;
 import ballerina/sql;
 import ballerinax/mysql;
 import ballerina/io;
@@ -16,7 +15,8 @@ mysql:Options mysqlOptions = {
 };
 
 listener http:Listener httpListener = new (8080);
-string API_KEY = os:getEnv("API_KEY");
+
+mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
 http:Client github = check new ("https://api.github.com");
 http:Client codetabsAPI = check new ("https://api.codetabs.com");
@@ -306,7 +306,6 @@ service / on httpListener {
     }
 
     resource function get metrics/getRepoLatestDailyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
 
@@ -315,13 +314,11 @@ service / on httpListener {
 
     }
     resource function get metrics/getRepoLatestMonthlyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 30`);
         return from Perfomance perfomance in Stream
             select perfomance;
     }
     resource function get metrics/getRepoLatestWeeklyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
-        mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 7`);
 
         return from Perfomance perfomance in Stream
@@ -658,9 +655,7 @@ class CalculateMetricsPeriodically {
         } on fail var e {
             io:println(e.message());
         }
-        mysql:Client dbClient;
         do {
-            dbClient = check new (hostname, username, password, "E2Metrices", port);
             stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
             check from RepositoriesJOINUser row in resultStream
                 do {

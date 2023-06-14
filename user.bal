@@ -2,7 +2,6 @@ import ballerina/http;
 import ballerina/mime;
 import ballerina/crypto;
 import ballerina/sql;
-import ballerinax/mysql;
 
 const map<string> groupsId = {
     "Premium": "4fd91b80-0f54-4c33-a600-ccefe62f6a77",
@@ -57,7 +56,6 @@ type UserRequest record {
 };
 
 function getUserGithubToken(string userId) returns string|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         byte[]|() ghToken = check dbClient->queryRow(`
                 SELECT GH_AccessToken FROM Users WHERE UserID=${userId};`);
@@ -73,7 +71,6 @@ function getUserGithubToken(string userId) returns string|error {
 }
 
 function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 INSERT INTO Repositories (Ownername,Reponame,UserId)
@@ -89,7 +86,6 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
 }
 
 function removeRepo(string userId, string ownername, string reponame) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 DELETE FROM Repositories WHERE UserId = ${userId} AND Reponame =${reponame} AND Ownername=${ownername};`);
@@ -102,7 +98,6 @@ function removeRepo(string userId, string ownername, string reponame) returns sq
 
 function getUserAllRepos(string userId) returns json[]|error {
     json[] response = [];
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
 
         stream<RepositoriesInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Repositories WHERE UserID = ${userId}`);
@@ -123,7 +118,6 @@ function authorizeToGithub(string code, string userId) returns json|error {
     string clientId = "9e50af7dd2997cde127a";
     string clientSecret = "201e65436456a06a98664c74611047bd8bdf16e5";
     json returnData = {};
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         json response = check github->post("/login/oauth/access_token",
             {
@@ -175,7 +169,6 @@ function getUserById(string userId) returns User|error {
 
 function getAllUserDetails() returns User[]|error {
     User[] response = [];
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
 
@@ -260,7 +253,6 @@ function addUserToGroup(string userId, string groupName) returns json|error {
 }
 
 function changePic(string imageURL, string userId) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
@@ -274,7 +266,6 @@ function changePic(string imageURL, string userId) returns sql:ExecutionResult|e
 }
 
 function changeUserLayout(string overviewlayout, string comparisonLayout, string forecastLayout, string userId) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
@@ -289,7 +280,6 @@ function changeUserLayout(string overviewlayout, string comparisonLayout, string
 
 function getPic(string userId) returns byte[]|error {
     byte[] response;
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
         response = check dbClient->queryRow(`
@@ -320,7 +310,6 @@ function getUserDetails(string userId) returns json|error {
 
 function getUserReportStatus(string userId) returns int|error {
     int response;
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         response = check dbClient->queryRow(`
                 SELECT isReportsEnable FROM Users
@@ -335,7 +324,7 @@ function getUserReportStatus(string userId) returns int|error {
 function getUserLayout(string userId) returns json|error {
     json userLayouts;
     stream<UserDB, sql:Error?> resultStream;
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
     do {
 
         resultStream = dbClient->query(`SELECT * FROM Users WHERE UserID=${userId} `);
@@ -354,7 +343,7 @@ function getUserLayout(string userId) returns json|error {
 }
 
 function setUserReportStatus(string userId, boolean isReportsEnable) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Users
@@ -410,7 +399,6 @@ function getAllUsers() returns json[]|error {
 
     json[] users = [];
     stream<UserDB, sql:Error?> resultStream;
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
     do {
         resultStream = dbClient->query(`SELECT * FROM Users`);

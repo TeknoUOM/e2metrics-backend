@@ -1,6 +1,5 @@
 import ballerina/sql;
 import ballerina/time;
-import ballerinax/mysql;
 
 type AlertLimitsInDB record {
     string 'UserID;
@@ -18,7 +17,6 @@ type AlertsInDB record {
 };
 
 public function setUserAlertLimits(string userId, float wontFixIssuesRatio, int weeklyCommitCount, int meanPullRequestResponseTime, float meanLeadTimeForPulls, float responseTimeforIssue) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE AlertLimits
@@ -31,7 +29,6 @@ public function setUserAlertLimits(string userId, float wontFixIssuesRatio, int 
 };
 
 public function getUserAlertLimits(string userId) returns AlertLimitsInDB[]|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         stream<AlertLimitsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM AlertLimits WHERE UserID = ${userId}`);
         return from AlertLimitsInDB limits in resultStream
@@ -46,7 +43,6 @@ public function setUserAlerts(string userId, string alert) returns sql:Execution
 
     string dateTime = time:utcToString(time:utcNow());
     dateTime = dateTime.substring(0, 19);
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            INSERT into Alerts (DateTime,Alert,UserID)
@@ -59,7 +55,6 @@ public function setUserAlerts(string userId, string alert) returns sql:Execution
 };
 
 public function getUserAlerts(string userId) returns AlertsInDB[]|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} AND isShowed=${0} ORDER BY DateTime ASC`);
         return from AlertsInDB limits in resultStream
@@ -71,7 +66,6 @@ public function getUserAlerts(string userId) returns AlertsInDB[]|error {
 };
 
 public function setUserAlertsIsShowed(string userId) returns sql:ExecutionResult|error {
-    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
 	            UPDATE Alerts SET isShowed=${true} WHERE UserID = ${userId};`);

@@ -2,7 +2,6 @@ import ballerina/time;
 import ballerina/regex;
 import ballerina/io;
 import ballerina/sql;
-import ballerinax/mysql;
 
 type Perfomance record {
     string Date;
@@ -76,11 +75,9 @@ function setRepositoryPerfomance(string ownername, string reponame, string UserI
 
     string dateTime = time:utcToString(time:utcNow());
     string[] dateAndTimeArray = regex:split(dateTime, "T");
-    mysql:Client dbClient;
 
     do {
 
-        dbClient = check new (hostname, username, password, "E2Metrices", port);
         _ = check dbClient->execute(`
 	            INSERT INTO DailyPerfomance (Date,Ownername,Reponame,IssuesFixingFrequency,BugFixRatio,CommitCount,totalNumberOfLines,MeanLeadFixTime,PullRequestFrequency,WeeklyCommitCount,OpenedIssuesCount,AllIssuesCount,WontFixIssuesRatio,MeanPullRequestResponseTime,PullRequestCount,MeanLeadTimeForPulls,ResponseTimeforIssue,UserId)
 	            VALUES (${dateAndTimeArray[0]},${ownername},${reponame},${IssuesFixingFrequency},${BugFixRatio},${CommitCount},${totalNumberOfLines},${MeanLeadFixTime},${PullRequestFrequency},${WeeklyCommitCount},${OpenedIssuesCount},${AllIssuesCount},${WontFixIssuesRatio},${MeanPullRequestResponseTime},${PullRequestCount},${MeanLeadTimeForPulls},${ResponseTimeforIssue},${UserId});`);
@@ -576,8 +573,6 @@ function getResponseTimeforIssue(string ownername, string reponame, string acces
 function getMonthlyReport(string userId, string startDate, string endDate) returns Perfomance[]|error {
     Perfomance[] records = [];
 
-    mysql:Client dbClient;
-    dbClient = check new (hostname, username, password, "E2Metrices", port);
     int i = 0;
 
     sql:ParameterizedQuery query2 = `SELECT * FROM E2Metrices.DailyPerfomance WHERE UserId=${userId} AND Date BETWEEN ${startDate} AND ${endDate}  order by Date`;
