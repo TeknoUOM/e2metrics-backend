@@ -628,6 +628,15 @@ service / on httpListener {
             return e;
         }
     }
+    resource function get metrics/getMonthlyReport(string userId, string startDate, string endDate) returns Perfomance[]|error {
+        do {
+            Perfomance[] perfomance = check getMonthlyReport(userId, startDate, endDate);
+            return perfomance;
+        } on fail var e {
+            return e;
+        }
+
+    }
 
 }
 

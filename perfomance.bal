@@ -582,3 +582,26 @@ function getResponseTimeforIssue(string ownername, string reponame, string acces
 
     }
 }
+
+function getMonthlyReport(string userId, string startDate, string endDate) returns Perfomance[]|error {
+    Perfomance[] records = [];
+
+    mysql:Client dbClient;
+    dbClient = check new (hostname, username, password, "E2Metrices", port);
+    int i = 0;
+
+    sql:ParameterizedQuery query2 = `SELECT * FROM E2Metrices.DailyPerfomance WHERE UserId=${userId} AND Date BETWEEN ${startDate} AND ${endDate}  order by Date`;
+
+    stream<Perfomance, sql:Error?> Result = dbClient->query(query2);
+    sql:Error? close = dbClient.close();
+
+    check from Perfomance performance in Result
+
+        do {
+            records[i] = performance;
+            i += 1;
+        };
+
+    return records;
+
+}
