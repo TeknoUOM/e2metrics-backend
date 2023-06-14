@@ -619,6 +619,16 @@ service / on httpListener {
         }
     }
 
+    resource function get forecast/getForecast(string usreId, string ownername, string reponame) returns json[]|error {
+
+        do {
+            json[] data = check getForecast(usreId, ownername, reponame);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+
 }
 
 type RepositoriesJOINUser record {
@@ -661,9 +671,9 @@ class CalculateMetricsPeriodically {
     }
 }
 
-time:Utc currentUtc = time:utcNow();
-time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
-time:Civil time = time:utcToCivil(newTime);
+// time:Utc currentUtc = time:utcNow();
+// time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
+// time:Civil time = time:utcToCivil(newTime);
 
-task:JobId result = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
+// task:JobId result = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
 
