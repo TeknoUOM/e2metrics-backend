@@ -665,7 +665,6 @@ class CalculateMetricsPeriodically {
         do {
             dbClient = check new (hostname, username, password, "E2Metrices", port);
             stream<RepositoriesJOINUser, sql:Error?> resultStream = dbClient->query(`SELECT Repositories.Reponame, Repositories.Ownername, Users.GH_AccessToken, Users.UserID FROM Users INNER JOIN Repositories ON Users.UserID=Repositories.UserId;`);
-            sql:Error? close = dbClient.close();
             check from RepositoriesJOINUser row in resultStream
                 do {
                     byte[] plainText = check crypto:decryptAesCbc(row.GH_AccessToken, encryptkey, initialVector);
@@ -673,7 +672,6 @@ class CalculateMetricsPeriodically {
                     setRepositoryPerfomance(row.'Ownername, row.'Reponame, row.'UserID, accessToken);
                 };
         } on fail error e {
-            sql:Error? close = dbClient.close();
             io:println(e.message());
         }
 
