@@ -67,13 +67,27 @@ public function setUserAlerts(string userId, string alert) returns sql:Execution
 public function getUserAlerts(string userId) returns AlertsInDB[]|error {
     mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
     do {
-        stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} ORDER BY DateTime DESC LIMIT 20`);
+        stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} AND isShowed=${0} ORDER BY DateTime ASC`);
         sql:Error? close = dbClient.close();
         return from AlertsInDB limits in resultStream
             select limits;
     } on fail error e {
         sql:Error? close = dbClient.close();
         return e;
+    }
+
+};
+
+public function setUserAlertsIsShowed(string userId) returns sql:ExecutionResult|error {
+    mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+    do {
+        sql:ExecutionResult|sql:Error result = check dbClient->execute(`
+	            UPDATE Alerts SET isShowed=${true} WHERE UserID = ${userId};`);
+        sql:Error? close = dbClient.close();
+        return result;
+    } on fail var err {
+        sql:Error? close = dbClient.close();
+        return err;
     }
 
 };

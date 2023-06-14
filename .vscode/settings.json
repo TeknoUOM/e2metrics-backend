@@ -1,3 +1,5 @@
 {
-  "workbench.colorCustomizations": {}
+  "workbench.colorCustomizations": {
+    "bal run": "#ff000040"
+  }
 }

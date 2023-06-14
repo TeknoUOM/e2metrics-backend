@@ -571,6 +571,16 @@ service / on httpListener {
         }
     }
 
+    resource function post user/setUserAlertsIsShowed(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+        string userId = check reqBody.userId;
+        do {
+            sql:ExecutionResult data = check setUserAlertsIsShowed(userId);
+            return data;
+        } on fail var e {
+            return e;
+        }
+    }
+
     resource function get user/getUserLayout(string userId) returns json|error {
 
         do {
