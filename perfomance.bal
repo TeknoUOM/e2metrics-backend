@@ -147,11 +147,6 @@ function getLinesOfCode(string ownername, string reponame, string accessToken) r
     json returnData;
     int totalNumberOfLines = 0;
     json[] languages = [];
-    map<string> headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "Authorization": "Bearer " + accessToken,
-        "X-GitHub-Api-Version": "2022-11-28"
-    };
 
     do {
         data = check codetabsAPI->get("/v1/loc/?github=" + ownername + "/" + reponame);
@@ -160,12 +155,9 @@ function getLinesOfCode(string ownername, string reponame, string accessToken) r
             totalNumberOfLines += linesOfCode;
         }
         foreach var item in data {
-            float lines = check item.lines;
-            //float ratio = (lines / totalNumberOfLines) * 100;
             languages.push({
                 language: check item.language,
                 lines: check item.lines
-                //ratio: ratio
             });
         }
         returnData = {
@@ -591,7 +583,6 @@ function getMonthlyReport(string userId, string startDate, string endDate) retur
     sql:ParameterizedQuery query2 = `SELECT * FROM E2Metrices.DailyPerfomance WHERE UserId=${userId} AND Date BETWEEN ${startDate} AND ${endDate}  order by Date`;
 
     stream<Perfomance, sql:Error?> Result = dbClient->query(query2);
-    sql:Error? close = dbClient.close();
 
     check from Perfomance performance in Result
 

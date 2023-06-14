@@ -66,10 +66,8 @@ function getUserGithubToken(string userId) returns string|error {
         }
         byte[] plainText = check crypto:decryptAesCbc(ghToken, encryptkey, initialVector);
         string accessToken = check string:fromBytes(plainText);
-        sql:Error? close = dbClient.close();
         return accessToken;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -83,10 +81,8 @@ function addRepo(UserRequest userRequest) returns sql:ExecutionResult|error {
 
         string ghToken = check getUserGithubToken(userRequest.userId);
         setRepositoryPerfomance(userRequest.ghUser, userRequest.repo, userRequest.userId, ghToken);
-        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -97,10 +93,8 @@ function removeRepo(string userId, string ownername, string reponame) returns sq
     do {
         sql:ExecutionResult|sql:Error result = check dbClient->execute(`
                 DELETE FROM Repositories WHERE UserId = ${userId} AND Reponame =${reponame} AND Ownername=${ownername};`);
-        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -117,10 +111,8 @@ function getUserAllRepos(string userId) returns json[]|error {
                 response.push({reponame: repos.'Reponame, ownername: repos.'Ownername});
             };
         check resultStream.close();
-        sql:Error? close = dbClient.close();
         return response;
     } on fail error e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -158,11 +150,9 @@ function authorizeToGithub(string code, string userId) returns json|error {
         returnData = {
             res: response
         };
-        sql:Error? close = dbClient.close();
         return returnData;
 
     } on fail var err {
-        sql:Error? close = dbClient.close();
         return err;
     }
 
@@ -190,7 +180,6 @@ function getAllUserDetails() returns User[]|error {
     do {
 
         stream<UserDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Users`);
-        sql:Error? close = dbClient.close();
         check from UserDB user in resultStream
             do {
                 User userById = check getUserById(user.'UserID);
@@ -198,7 +187,6 @@ function getAllUserDetails() returns User[]|error {
             };
         return response;
     } on fail error e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -278,10 +266,8 @@ function changePic(string imageURL, string userId) returns sql:ExecutionResult|e
 	            UPDATE Users
                 SET ProfilePic =${imageURL} 
 	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -294,10 +280,8 @@ function changeUserLayout(string overviewlayout, string comparisonLayout, string
 	            UPDATE Users
                 SET OverviewLayout =${overviewlayout} ,ComparisonLayout=${comparisonLayout},ForecastLayout=${forecastLayout}
 	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -311,10 +295,8 @@ function getPic(string userId) returns byte[]|error {
         response = check dbClient->queryRow(`
                 SELECT ProfilePic FROM Users
 	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
         return response;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 
@@ -343,11 +325,9 @@ function getUserReportStatus(string userId) returns int|error {
         response = check dbClient->queryRow(`
                 SELECT isReportsEnable FROM Users
 	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
 
         return response;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -359,7 +339,6 @@ function getUserLayout(string userId) returns json|error {
     do {
 
         resultStream = dbClient->query(`SELECT * FROM Users WHERE UserID=${userId} `);
-        sql:Error? close = dbClient.close();
         check from UserDB row in resultStream
             do {
                 userLayouts = {
@@ -370,7 +349,6 @@ function getUserLayout(string userId) returns json|error {
                 return userLayouts;
             };
     } on fail error e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -382,10 +360,8 @@ function setUserReportStatus(string userId, boolean isReportsEnable) returns sql
 	            UPDATE Users
                 SET isReportsEnable =${isReportsEnable} 
 	            WHERE UserID=${userId} ;`);
-        sql:Error? close = dbClient.close();
         return result;
     } on fail var e {
-        sql:Error? close = dbClient.close();
         return e;
     }
 }
@@ -443,10 +419,8 @@ function getAllUsers() returns json[]|error {
                 json user = check getUserDetails(row.'UserID);
                 users.push(user);
             };
-        sql:Error? close = dbClient.close();
     } on fail error e {
         check resultStream.close();
-        sql:Error? close = dbClient.close();
         return e;
     }
     check resultStream.close();

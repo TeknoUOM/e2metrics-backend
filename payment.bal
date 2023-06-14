@@ -15,13 +15,11 @@ public function savePayment(string timestamp,string id,string userId,float amoun
             _ = check dbClient->execute(`
 	            INSERT INTO Payment
                 VALUES (${timestamp}, ${id},${userId},${amountValue},${amountCurrencyCode},${subscription})`);
-        sql:Error? close = dbClient.close();
                 returnData={
                     status:200
                 };
                 return returnData;
         } on fail var err {
-            sql:Error? close = dbClient.close();
             return err;
         }
         
@@ -33,7 +31,6 @@ public function getUserPayments(string userId) returns PaymentInDB[]|error {
     do {
         
         stream<PaymentInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Payment WHERE UserID = ${userId}`);
-        sql:Error? close = dbClient.close();
         check from PaymentInDB payment in resultStream
             do {
                 responses.push(payment);
@@ -41,7 +38,6 @@ public function getUserPayments(string userId) returns PaymentInDB[]|error {
         check resultStream.close();
         return responses;
     } on fail error e {
-        sql:Error? close = dbClient.close();
         return e;
     }
         

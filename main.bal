@@ -309,7 +309,6 @@ service / on httpListener {
         mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
 
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 1`);
-        sql:Error? close = dbClient.close();
 
         return from Perfomance perfomance in Stream
             select perfomance;
@@ -318,14 +317,12 @@ service / on httpListener {
     resource function get metrics/getRepoLatestMonthlyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
         mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 30`);
-        sql:Error? close = dbClient.close();
         return from Perfomance perfomance in Stream
             select perfomance;
     }
     resource function get metrics/getRepoLatestWeeklyPerfomance(string userId, string reponame, string ownername) returns Perfomance[]|error {
         mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
         stream<Perfomance, sql:Error?> Stream = dbClient->query(`SELECT * FROM DailyPerfomance WHERE Ownername=${ownername} AND Reponame=${reponame} AND UserId=${userId} ORDER BY Date DESC LIMIT 7`);
-        sql:Error? close = dbClient.close();
 
         return from Perfomance perfomance in Stream
             select perfomance;
