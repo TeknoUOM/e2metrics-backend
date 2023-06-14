@@ -680,9 +680,9 @@ class CalculateMetricsPeriodically {
     }
 }
 
-// time:Utc currentUtc = time:utcNow();
-// time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
-// time:Civil time = time:utcToCivil(newTime);
+time:Utc currentUtc = time:utcNow();
+time:Utc newTime = time:utcAddSeconds(currentUtc, 10);
+time:Civil time = time:utcToCivil(newTime);
 
-// task:JobId result = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
+task:JobId result = check task:scheduleOneTimeJob(new CalculateMetricsPeriodically(), time);
 
