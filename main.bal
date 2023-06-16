@@ -385,10 +385,10 @@ service / on httpListener {
         }
     }
 
-    resource function delete user/removeRepo(@http:Payload UserRequest userRequest) returns sql:ExecutionResult|error {
+    resource function delete user/removeRepo(string userId, string ownername, string reponame) returns sql:ExecutionResult|error {
         sql:ExecutionResult|sql:Error response;
         do {
-            response = check removeRepo(userRequest.userId, userRequest.ghUser, userRequest.repo);
+            response = check removeRepo(userId, ownername, reponame);
             return response;
         } on fail var e {
             return e;
@@ -584,20 +584,13 @@ service / on httpListener {
             return e;
         }
     }
-    @http:ResourceConfig {
-        cors: {
-            allowOrigins: ["http://localhost:3000"],
-            allowCredentials: true,
-            allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
-        }
-    }
-    resource function port user/changeUserLayout(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
+    resource function post user/changeUserLayout(@http:Payload map<json> reqBody) returns sql:ExecutionResult|error {
         string userId = check reqBody.userId;
-        string overviewlayout = check reqBody.overviewlayout;
-        string comparisonLayout = check reqBody.comparisonLayout;
-        string forecastLayout = check reqBody.forecastLayout;
+        string|() overviewlayout = check reqBody.overviewlayout;
+        string|() comparisonLayout = check reqBody.comparisonLayout;
+        string|() forecastLayout = check reqBody.forecastLayout;
         do {
-            sql:ExecutionResult data = check changeUserLayout(overviewlayout, comparisonLayout, forecastLayout, userId);
+            sql:ExecutionResult data = check changeUserLayout(overviewlayout == () ? "" : overviewlayout, comparisonLayout == () ? "" : comparisonLayout, forecastLayout == () ? "" : forecastLayout, userId);
             return data;
         } on fail var e {
             return e;

@@ -123,6 +123,9 @@ function getForecast(string UserId, string ownername, string reponame) returns j
     if (count == 0) {
         return error("no daily performance yet", message = "no perfomance for repo", code = 400);
     }
+    if (count <= 7) {
+        return error("no enough performance data yet", message = "no enough performance data yet for repo to calculate forecast", code = 400);
+    }
     AVGIssuesFixingFrequency = AVGIssuesFixingFrequency / count;
     AVGBugFixRatio = AVGBugFixRatio / count;
     AVGCommitCount = AVGCommitCount / count;
