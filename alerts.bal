@@ -56,7 +56,7 @@ public function setUserAlerts(string userId, string alert) returns sql:Execution
 
 public function getUserAlerts(string userId) returns AlertsInDB[]|error {
     do {
-        stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} AND isShowed=${0} ORDER BY DateTime ASC`);
+        stream<AlertsInDB, sql:Error?> resultStream = dbClient->query(`SELECT * FROM Alerts  WHERE UserID = ${userId} AND isShowed=${false} ORDER BY DateTime ASC`);
         return from AlertsInDB limits in resultStream
             select limits;
     } on fail error e {

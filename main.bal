@@ -1,11 +1,17 @@
-import ballerina/http;
-import ballerina/sql;
-import ballerinax/mysql;
-import ballerina/io;
-import ballerinax/mysql.driver as _;
-import ballerina/time;
-import ballerina/task;
 import ballerina/crypto;
+import ballerina/http;
+import ballerina/io;
+import ballerina/sql;
+import ballerina/task;
+import ballerina/time;
+import ballerinax/mysql;
+import ballerinax/mysql.driver as _;
+
+configurable string hostname = ?;
+configurable int port = ?;
+configurable string username = ?;
+configurable string password = ?;
+configurable string database = ?;
 
 mysql:Options mysqlOptions = {
     ssl: {
@@ -16,7 +22,7 @@ mysql:Options mysqlOptions = {
 
 listener http:Listener httpListener = new (8080);
 
-mysql:Client dbClient = check new (hostname, username, password, "E2Metrices", port);
+mysql:Client dbClient = check new (hostname, username, password, database, port);
 
 http:Client github = check new ("https://api.github.com");
 http:Client codetabsAPI = check new ("https://api.codetabs.com");

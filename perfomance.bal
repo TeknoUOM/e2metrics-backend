@@ -1,7 +1,7 @@
-import ballerina/time;
-import ballerina/regex;
 import ballerina/io;
+import ballerina/regex;
 import ballerina/sql;
+import ballerina/time;
 
 type Perfomance record {
     string Date;
@@ -38,20 +38,20 @@ const map<int> weights = {
 
 function setRepositoryPerfomance(string ownername, string reponame, string UserId, string accessToken) {
 
-    float IssuesFixingFrequency;
-    float BugFixRatio;
-    int CommitCount;
-    int totalNumberOfLines;
-    float MeanLeadFixTime;
-    int PullRequestFrequency;
-    int WeeklyCommitCount;
-    int OpenedIssuesCount;
-    int AllIssuesCount;
-    float WontFixIssuesRatio;
-    int MeanPullRequestResponseTime;
-    int PullRequestCount;
-    float MeanLeadTimeForPulls;
-    float ResponseTimeforIssue;
+    float IssuesFixingFrequency = 0;
+    float BugFixRatio = 0;
+    int CommitCount = 0;
+    int totalNumberOfLines = 0;
+    float MeanLeadFixTime = 0;
+    int PullRequestFrequency = 0;
+    int WeeklyCommitCount = 0;
+    int OpenedIssuesCount = 0;
+    int AllIssuesCount = 0;
+    float WontFixIssuesRatio = 0;
+    int MeanPullRequestResponseTime = 0;
+    int PullRequestCount = 0;
+    float MeanLeadTimeForPulls = 0;
+    float ResponseTimeforIssue = 0;
     do {
         json linesOfCode = check getLinesOfCode(ownername, reponame, accessToken);
         totalNumberOfLines = check linesOfCode.totalNumberOfLines;
